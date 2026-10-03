@@ -4,7 +4,7 @@
 
 A practice game for lawyers building the technical fluency a legal engineering role asks for.
 
-**Play it:** https://nkostelnik.github.io/learn-legal-engineering/
+**Play it:** https://nkostelnik.github.io/legal-engineer-bootcamp/
 
 Inspired by [Ted Theodoropoulos's post](https://lnkd.in/p/gBuHK8CW) breaking down what a Legal Engineering Attorney job req really asks of one person.
 
