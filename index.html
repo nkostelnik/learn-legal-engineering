@@ -1401,7 +1401,8 @@ function home() {
       h('h3', { text: cleared ? 'You would clear this req.' : 'The bar: two stars on every matter' }),
       h('p', { text: cleared ? 'Every line of the req is covered at two stars or better. Go back for three stars, or explain any matter out loud to a colleague without notes.' : 'Two stars means you handled most of the matter without help. Three means you could teach it.' })),
     prepEl(),
-    h('p', { class: 'foot muted' }, 'Progress is saved in this browser only. ', h('button', { class: 'link', text: 'Clear my progress', onclick: e => {
+    h('p', { class: 'foot muted' }, 'Inspired by ', h('a', { href: 'https://lnkd.in/p/gBuHK8CW', target: '_blank', rel: 'noopener', style: 'color:var(--accent)', text: 'Ted Theodoropoulos\'s post' }), ' on what a Legal Engineering Attorney req asks of one person.'),
+    h('p', { class: 'foot muted', style: 'margin-top:8px' }, 'Progress is saved in this browser only. ', h('button', { class: 'link', text: 'Clear my progress', onclick: e => {
       const b = e.currentTarget;
       if (b.dataset.arm) { state = { stars: {} }; save(); home(); } else { b.dataset.arm = '1'; b.textContent = 'Tap again to clear all stars'; }
     } }))

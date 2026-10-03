@@ -6,9 +6,11 @@ A practice game for lawyers building the technical fluency a legal engineering r
 
 **Play it:** https://nkostelnik.github.io/learn-legal-engineering/
 
+Inspired by [Ted Theodoropoulos's post](https://lnkd.in/p/gBuHK8CW) breaking down what a Legal Engineering Attorney job req really asks of one person.
+
 ## Why it exists
 
-A typical Legal Engineering Attorney job description asks one person for three skill sets:
+Ted's analysis of an Am Law 100 Legal Engineering Attorney job description shows the req asks one person for three skill sets:
 
 | Role | What the req asks for |
 | --- | --- |
