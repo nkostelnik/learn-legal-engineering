@@ -1,6 +1,6 @@
-# Req Ready
+# Legal Engineer Bootcamp
 
-![Req Ready](social-preview.png)
+![Legal Engineer Bootcamp](social-preview.png)
 
 A practice game for lawyers building the technical fluency a legal engineering role asks for.
 
@@ -18,7 +18,7 @@ Ted's analysis of an Am Law 100 Legal Engineering Attorney job description shows
 | AI engineer | Write prompts, JSON Schemas, retrieval setups and evaluation suites. |
 | Practicing lawyer | A J.D. and practice experience. Supply the playbook, the fallback positions and the house style. |
 
-Req Ready gives you a level for each of those lines. Every level uses NDA work and starts with a short brief. Then you do a hands-on exercise and get a score of up to three stars.
+Legal Engineer Bootcamp gives you a level for each of those lines. Every level uses NDA work and starts with a short brief. Then you do a hands-on exercise and get a score of up to three stars.
 
 ## The docket
 
