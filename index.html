@@ -1,0 +1,893 @@
+<title>Req Ready</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single-column court docket. Home lists matters by role; each matter opens a brief, then the exercise. */
+:root {
+  --paper: #F2F4F7;
+  --sheet: #FFFFFF;
+  --ink: #13213C;
+  --muted: #56637A;
+  --rule: #D3DAE4;
+  --accent: #1A5CCB;
+  --accent-ink: #FFFFFF;
+  --mark: #F5C842;
+  --mark-ink: #13213C;
+  --ok: #23774A;
+  --ok-bg: #E3F2E9;
+  --bad: #B8312C;
+  --bad-bg: #FBE7E5;
+  --code-bg: #EAEFF5;
+  --panel: #13213C;
+  --panel-ink: #F2F4F7;
+  --f-display: "Newsreader", "Georgia", "Times New Roman", serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0D1424; --sheet: #151F33; --ink: #E5EBF4; --muted: #9AA8BF; --rule: #2A3852;
+    --accent: #6E9FFF; --accent-ink: #0D1424; --mark: #F5C842; --mark-ink: #13213C;
+    --ok: #5CC68C; --ok-bg: #143224; --bad: #FF7A73; --bad-bg: #3A1A1C; --code-bg: #0F182A;
+    --panel: #1C2A45; --panel-ink: #E5EBF4; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0D1424; --sheet: #151F33; --ink: #E5EBF4; --muted: #9AA8BF; --rule: #2A3852;
+  --accent: #6E9FFF; --accent-ink: #0D1424; --mark: #F5C842; --mark-ink: #13213C;
+  --ok: #5CC68C; --ok-bg: #143224; --bad: #FF7A73; --bad-bg: #3A1A1C; --code-bg: #0F182A;
+  --panel: #1C2A45; --panel-ink: #E5EBF4; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 700; line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.4rem, 7vw, 3.6rem); letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.7rem, 5vw, 2.3rem); }
+h3 { font-size: 1.3rem; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+code { background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 3px; }
+.eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--muted); }
+.muted { color: var(--muted); }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--r); padding: 10px 18px; font-weight: 600; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--rule); }
+.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; }
+
+/* Home */
+.masthead { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+.lede { font-size: 1.1rem; max-width: 62ch; }
+.req { background: var(--panel); color: var(--panel-ink); border-radius: var(--r); padding: 20px 22px; display: grid; gap: 14px; }
+.req .eyebrow { color: var(--panel-ink); opacity: 0.75; }
+.req-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.req-role { display: grid; gap: 6px; min-width: 0; }
+.req-role b { font-family: var(--f-display); font-size: 1.1rem; }
+.meter { height: 8px; background: color-mix(in srgb, var(--panel-ink) 18%, transparent); border-radius: 4px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--mark); width: 0; transition: width .5s ease; }
+.req-role .count { font-variant-numeric: tabular-nums; font-size: 0.85rem; opacity: 0.85; }
+@media (max-width: 620px) { .req-grid { grid-template-columns: 1fr; } }
+
+.track { display: grid; gap: 4px; padding-top: 30px; }
+.track-head { display: grid; gap: 4px; padding-bottom: 10px; }
+.docket { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.docket li { border-bottom: 1px solid var(--rule); }
+.docket button { width: 100%; background: none; border: 0; text-align: left; padding: 14px 4px; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 12px; align-items: baseline; }
+.docket button:hover { background: var(--sheet); }
+.docket .no { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.docket .t { font-weight: 600; }
+.docket .k { display: block; font-size: 0.85rem; color: var(--muted); font-weight: 400; }
+@media (max-width: 520px) { .docket button { grid-template-columns: minmax(0, 1fr) auto; } .docket .no { grid-column: 1 / -1; } }
+.stars { font-size: 1.05rem; letter-spacing: 2px; white-space: nowrap; }
+.stars .on { color: var(--mark); text-shadow: 0 0 0 var(--ink); -webkit-text-stroke: 0.5px color-mix(in srgb, var(--ink) 40%, transparent); }
+.stars .off { color: var(--rule); }
+.verdict { margin-top: 32px; padding: 18px 20px; border: 2px solid var(--ink); border-radius: var(--r); display: grid; gap: 6px; }
+.verdict.done { background: var(--mark); color: var(--mark-ink); border-color: var(--mark); }
+.foot { margin-top: 28px; font-size: 0.85rem; }
+
+/* Matter view */
+.matter-head { display: grid; gap: 8px; padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+.brief { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 18px 20px; display: grid; gap: 10px; max-width: 100%; }
+.brief p { max-width: 68ch; }
+.why { border-left: 3px solid var(--mark); padding-left: 12px; font-size: 0.92rem; color: var(--muted); }
+.task { font-weight: 600; font-size: 1.05rem; max-width: 68ch; }
+.exhibit { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 14px 16px; overflow-x: auto; }
+.exhibit h4 { margin: 0 0 6px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+.exhibit ul { margin: 0; padding-left: 1.2em; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+/* Exercises */
+.pane-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; font-weight: 600; color: var(--muted); }
+.slots { display: grid; gap: 8px; counter-reset: s; list-style: none; padding: 0; margin: 0; }
+.chip { width: 100%; text-align: left; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 11px 14px; display: flex; gap: 12px; align-items: baseline; }
+.chip:hover:not(:disabled) { border-color: var(--accent); }
+.chip .n { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); min-width: 1.6em; font-variant-numeric: tabular-nums; }
+.chip.placed { border-color: var(--ink); }
+.chip.empty { border-style: dashed; color: var(--muted); cursor: default; }
+.chip.ok { border-color: var(--ok); background: var(--ok-bg); }
+.chip.bad { border-color: var(--bad); background: var(--bad-bg); }
+.chip:disabled { cursor: default; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 680px) { .cols { grid-template-columns: 1fr; } }
+
+.item { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 10px; }
+.item.ok { border-color: var(--ok); }
+.item.bad { border-color: var(--bad); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.seg button.right { border-color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+.seg button:disabled { cursor: default; }
+.explain { font-size: 0.92rem; padding: 8px 12px; border-radius: 4px; background: var(--code-bg); }
+.explain b.okt { color: var(--ok); }
+.explain b.badt { color: var(--bad); }
+.num { font: inherit; font-family: var(--f-mono); width: 8.5em; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--sheet); color: var(--ink); }
+
+.toggle { width: 100%; text-align: left; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; }
+.toggle .box { width: 20px; height: 20px; border: 2px solid var(--muted); border-radius: 4px; margin-top: 2px; display: grid; place-items: center; font-size: 13px; line-height: 1; }
+.toggle[aria-pressed="true"] { border-color: var(--accent); }
+.toggle[aria-pressed="true"] .box { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.toggle .lbl { font-weight: 600; }
+.toggle .txt { display: block; font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 4px; }
+pre.code { margin: 0; background: var(--code-bg); border-radius: var(--r); padding: 12px 14px; font-family: var(--f-mono); font-size: 0.82rem; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tests { display: grid; gap: 10px; }
+.test { border: 1px solid var(--rule); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 8px; background: var(--sheet); }
+.test.ok { border-color: var(--ok); }
+.test.bad { border-color: var(--bad); }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 999px; }
+.tag.ok { background: var(--ok-bg); color: var(--ok); }
+.tag.bad { background: var(--bad-bg); color: var(--bad); }
+.tag.neutral { background: var(--code-bg); color: var(--muted); }
+
+textarea.editor { width: 100%; min-height: 320px; resize: vertical; font-family: var(--f-mono); font-size: 0.85rem; line-height: 1.5; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--code-bg); color: var(--ink); tab-size: 2; }
+.err { color: var(--bad); font-family: var(--f-mono); font-size: 0.82rem; overflow-wrap: anywhere; }
+.warn { font-size: 0.88rem; padding: 8px 12px; border-left: 3px solid var(--mark); background: var(--sheet); }
+.samples { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r); background: var(--sheet); }
+.samples td pre { margin: 0; font-family: var(--f-mono); font-size: 0.78rem; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 40ch; }
+.samples td.msg { font-family: var(--f-mono); font-size: 0.78rem; color: var(--muted); overflow-wrap: anywhere; min-width: 12ch; }
+
+.result { border-radius: var(--r); padding: 16px 18px; display: grid; gap: 8px; background: var(--panel); color: var(--panel-ink); }
+.result .stars .off { color: color-mix(in srgb, var(--panel-ink) 30%, transparent); }
+.result .score { font-family: var(--f-display); font-size: 1.4rem; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+/* ---------- Content ---------- */
+const TRACKS = [
+{
+  id: 'pe', code: 'PE', name: 'Process engineer',
+  blurb: 'Lean Six Sigma thinking. Maps the workflow and places the review gates.',
+  levels: [
+  {
+    id: 'pe-01', title: 'Map the NDA workflow', kind: 'order', label: 'Sequencing',
+    reqLine: 'Decompose workflows into tasks',
+    brief: [
+      'Before you automate anything, break the work into discrete tasks. Each task should have one input, one output and one owner. If you cannot describe a step that way, you cannot automate it or measure it.',
+      'In Lean terms you are mapping the value stream: every step between "we need an NDA" and "the signed NDA is on file". Order matters, because each step consumes what the step before it produced.'
+    ],
+    task: 'Tap the steps in the order they happen. Tap a placed step to send it back.',
+    items: [
+      { text: 'Intake: requester submits a form with the counterparty and purpose', why: 'Everything downstream depends on a structured request. A form, not an email, so the data is machine-readable.' },
+      { text: 'Triage: classify as mutual or one-way, our paper or theirs', why: 'Triage picks the path. Our paper skips extraction entirely; their paper needs it.' },
+      { text: 'Extract: pull the key clauses from the counterparty draft', why: 'You cannot compare what you have not isolated. This is the most automatable step.' },
+      { text: 'Compare: check each clause against the playbook', why: 'Extraction output plus playbook rules produce a deviation list.' },
+      { text: 'Draft: generate redlines using the approved fallback positions', why: 'Redlines come from deviations. The fallback ladder tells the drafter which rung to offer.' },
+      { text: 'Review gate: attorney approves the redline', why: 'The gate sits immediately before the first external step.' },
+      { text: 'Send: redline goes to the counterparty', why: 'External and hard to take back. That is why the gate sits right before it.' },
+      { text: 'Record: executed NDA and key terms logged in the CLM', why: 'Closing the loop gives you data for obligations tracking and for your next eval suite.' }
+    ]
+  },
+  {
+    id: 'pe-02', title: 'Place the review gates', kind: 'classify', label: 'Classification',
+    reqLine: 'Review gates and exceptions',
+    brief: [
+      'Every task gets one of three treatments.',
+      '<b>Automate</b>: the system does it. Validation checks every output and your eval suite measures accuracy. <b>Human gate</b>: a planned checkpoint every matter passes through, where a lawyer must approve before work moves on. Put gates before anything external or irreversible. <b>Exception route</b>: a defined path triggered only by certain conditions, so unusual inputs leave the happy path instead of failing quietly.'
+    ],
+    task: 'Assign each task to a treatment.',
+    buckets: ['Automate', 'Human gate', 'Exception route'],
+    items: [
+      { text: 'Extract the governing law clause from a counterparty draft.', answer: 0, why: 'Narrow and checkable. Validate it with a schema and measure it with evals.' },
+      { text: 'Approve the final redline before it goes to the counterparty.', answer: 1, why: 'Every matter passes this point and it precedes an external step. A planned gate.' },
+      { text: 'The model reports low confidence on the confidentiality period.', answer: 2, why: 'Low confidence is a trigger. Route it to a person with the reason attached instead of letting it pass.' },
+      { text: 'The counterparty draft is in German.', answer: 2, why: 'Outside what the process and its evals were built for. Route it out rather than guess.' },
+      { text: 'Check that the requester entered the counterparty\'s legal name.', answer: 0, why: 'Form validation. No judgment involved.' },
+      { text: 'Counterparty proposes a 2-year confidentiality period, below the playbook floor.', answer: 2, why: 'The playbook says escalate. That is a conditional route to a partner, not a step every matter takes.' },
+      { text: 'Push the executed NDA\'s expiry date to the CLM.', answer: 0, why: 'Structured data moving between systems. Automate and validate.' }
+    ]
+  },
+  {
+    id: 'pe-03', title: 'Hunt the waste', kind: 'quiz', label: 'Lean Six Sigma',
+    reqLine: 'Process engineer: Lean Six Sigma',
+    brief: [
+      'Lean names eight wastes, remembered as <b>DOWNTIME</b>: Defects, Overproduction, Waiting, Non-utilized talent, Transportation, Inventory, Motion, Extra processing.',
+      '<b>Process cycle efficiency</b> (PCE) = value-added time ÷ total lead time. Legal workflows often run under 5%. Most of the lead time is work sitting in a queue, which is why automation alone rarely fixes a slow process. You also have to remove the waiting.'
+    ],
+    task: 'Name the waste in each scenario, then run the numbers.',
+    questions: [
+      { type: 'choice', q: 'Associates retype the counterparty\'s terms into an intake spreadsheet, then again into the CLM.', options: ['Extra processing', 'Inventory', 'Motion', 'Waiting'], answer: 0, explain: 'The same data keyed twice adds no value. Capture once, pass it along.' },
+      { type: 'choice', q: '120 NDA requests sit in a shared inbox awaiting triage.', options: ['Overproduction', 'Inventory', 'Defects', 'Transportation'], answer: 1, explain: 'Work in progress piled up between steps is inventory. It hides problems and stretches lead time.' },
+      { type: 'choice', q: 'A form-standard NDA waits three days for a partner to sign off.', options: ['Motion', 'Extra processing', 'Waiting', 'Non-utilized talent'], answer: 2, explain: 'Waiting. And if it is form-standard, the gate may belong further down the risk curve.' },
+      { type: 'choice', q: 'A senior associate with eight years of practice proofreads defined-term capitalization.', options: ['Defects', 'Non-utilized talent', 'Inventory', 'Overproduction'], answer: 1, explain: 'Skilled judgment spent on mechanical checking. A linter can do this.' },
+      { type: 'choice', q: 'A redline goes out with the wrong counterparty name and has to be reissued.', options: ['Defects', 'Motion', 'Waiting', 'Transportation'], answer: 0, explain: 'Rework caused by an error. Defects are the waste the review gate exists to catch.' },
+      { type: 'number', q: 'Hands-on time per NDA is 45 minutes. Lead time from request to signature is 5 business days of 8 hours (2,400 minutes). What is the PCE?', answer: 1.875, tol: 0.15, suffix: '%', explain: '45 ÷ 2,400 = 1.875%. More than 98% of the lead time is the NDA waiting.' },
+      { type: 'choice', q: 'Where does a review gate belong?', options: ['At the start, so lawyers see every request', 'Immediately before an external or irreversible step', 'After the NDA is signed, as an audit', 'Between every pair of automated steps'], answer: 1, explain: 'Gate the point of no return. Earlier gates add waiting; later ones are too late.' }
+    ]
+  }]
+},
+{
+  id: 'ai', code: 'AI', name: 'AI engineer',
+  blurb: 'Prompts, schemas, retrieval and evaluation.',
+  levels: [
+  {
+    id: 'ai-01', title: 'Prompt anatomy', kind: 'prompt', label: 'Prompt building',
+    reqLine: 'Write prompts',
+    brief: [
+      'A production prompt is a specification. Every line should change a behavior you can test. If a line does not fix a failing test, it is noise that costs tokens and makes the prompt harder to maintain.',
+      'This prompt extracts clauses from NDAs and rates them against the playbook. Your test suite has six cases. Each was written after a real failure.'
+    ],
+    task: 'Turn components on, then run the test suite. Aim for six of six passing with no filler.',
+    components: [
+      { id: 'task', label: 'Task statement', text: 'Task: Read the NDA below. Extract the governing law clause and the confidentiality period, and rate each against the firm\'s playbook.' },
+      { id: 'context', label: 'Playbook context', text: 'Playbook (retrieved):\n- Governing law: preferred New York; fallback Delaware; anything else escalates.\n- Confidentiality period: preferred 5 years; fallback 3 years; under 3 years escalates.' },
+      { id: 'format', label: 'Output format', text: 'Output: Return only JSON with the keys clause_type, present, text and risk. No prose before or after the JSON.' },
+      { id: 'absent', label: 'Missing-clause rule', text: 'If a clause is not in the NDA, set present to false and text to null. Do not infer or assume a clause.' },
+      { id: 'evidence', label: 'Evidence rule', text: 'For every clause you find, copy the exact sentence into text so a reviewer can verify it.' },
+      { id: 'example', label: 'Worked example', text: 'Example: a heading "Choice of Law" or "Applicable Law" is clause_type governing_law.\nInput: "Applicable Law. This Agreement is governed by New York law."\nOutput: {"clause_type":"governing_law","present":true,"text":"This Agreement is governed by New York law.","risk":"low"}' },
+      { id: 'persona', label: 'Persona', filler: true, text: 'You are a world-class senior partner at an elite firm who never makes mistakes.', why: 'The persona tells the model nothing about what to extract, what to return or what to do when a clause is missing. No test changes when you add it.' },
+      { id: 'shout', label: 'Emphasis', filler: true, text: 'IMPORTANT!!! Accuracy is CRITICAL. Think very hard!!!', why: 'Emphasis is not an instruction. Write the specific behavior you want instead, as the other components do.' }
+    ],
+    tests: [
+      { name: 'Does the assigned task', input: 'NDA #1 (Acme / Beta, mutual)', needs: 'task',
+        fail: 'This Mutual Non-Disclosure Agreement between Acme Corp. and Beta LLC sets out the parties\' obligations regarding confidential information...',
+        failWhy: 'With no task statement, the model guessed you wanted a summary.',
+        pass: '{"clause_type":"governing_law","present":true, ...}' },
+      { name: 'Output parses as JSON', input: 'NDA #1', needs: 'format',
+        fail: 'Sure! Here\'s what I found:\n\nThe governing law is New York, which looks fine.',
+        failWhy: 'Your code calls JSON.parse() on this and crashes. Name the format and forbid prose around it.',
+        pass: '{"clause_type":"governing_law","present":true,"text":"...","risk":"low"}' },
+      { name: 'Rates against our playbook', input: 'NDA #1: confidentiality "three (3) years"', needs: 'context',
+        fail: '{"clause_type":"confidentiality_period","present":true,"text":"...for three (3) years...","risk":"high"}',
+        failWhy: 'The model applied a generic market norm and called 3 years high risk. Your playbook says 3 years is an approved fallback. The model cannot apply rules it has not seen.',
+        pass: '{"clause_type":"confidentiality_period","present":true,"text":"...for three (3) years...","risk":"medium"}' },
+      { name: 'Handles a missing clause', input: 'NDA #2: no governing law clause', needs: 'absent',
+        fail: '{"clause_type":"governing_law","present":true,"text":"This Agreement is governed by the laws of the State of Delaware.","risk":"low"}',
+        failWhy: 'That sentence is not in the NDA. With no rule for absence, the model wrote a plausible clause. This is the hallucination a tired reviewer misses.',
+        pass: '{"clause_type":"governing_law","present":false,"text":null,"risk":"high"}' },
+      { name: 'Quotes its evidence', input: 'NDA #1', needs: 'evidence',
+        fail: '{"clause_type":"governing_law","present":true,"text":"Governing law appears to be New York.","risk":"low"}',
+        failWhy: 'A paraphrase. The reviewer has to reopen the NDA to check it, which cancels the time saved.',
+        pass: '{"clause_type":"governing_law","present":true,"text":"This Agreement shall be governed by the laws of the State of New York.","risk":"low"}' },
+      { name: 'Maps headings to our taxonomy', input: 'NDA #3: heading "Applicable Law"', needs: 'example',
+        fail: '{"clause_type":"applicable_law","present":true,"text":"...","risk":"low"}',
+        failWhy: 'The model invented a label. An example of the mapping fixes it. A JSON Schema enum would also catch it at validation; see the next matter.',
+        pass: '{"clause_type":"governing_law","present":true,"text":"...","risk":"low"}' }
+    ]
+  },
+  {
+    id: 'ai-02', title: 'Schema forge: clause extraction', kind: 'schema', label: 'JSON Schema',
+    reqLine: 'Write JSON Schemas',
+    brief: [
+      'A JSON Schema is the contract between the model and the code that consumes its output. Validation runs on every response, so a malformed answer is caught before it reaches a lawyer or a database.',
+      'The keywords that do most of the work: <code>type</code>, <code>properties</code>, <code>required</code>, <code>enum</code> and <code>additionalProperties: false</code>. A type can be a list, like <code>["string", "null"]</code>, when a field may be empty.'
+    ],
+    task: 'Edit the schema until every "should pass" sample passes and every "should fail" sample fails. The rules: clause_type is one of governing_law, term, confidentiality_period, non_solicit. risk is low, medium or high, lowercase. text is a string, or null when the clause is absent. Every field is required and no other fields are allowed.',
+    start: `{
+  "type": "object",
+  "properties": {
+    "clause_type": { "type": "string" },
+    "present": { "type": "boolean" },
+    "text": { "type": "string" },
+    "risk": { "type": "string" }
+  }
+}`,
+    solution: `{
+  "type": "object",
+  "properties": {
+    "clause_type": {
+      "type": "string",
+      "enum": ["governing_law", "term", "confidentiality_period", "non_solicit"]
+    },
+    "present": { "type": "boolean" },
+    "text": { "type": ["string", "null"] },
+    "risk": { "type": "string", "enum": ["low", "medium", "high"] }
+  },
+  "required": ["clause_type", "present", "text", "risk"],
+  "additionalProperties": false
+}`,
+    hints: [
+      'Sample B has text: null. Allow it with a type list.',
+      'Add an enum to clause_type and to risk. Enums are case-sensitive, which is the point.',
+      'required is an array of property names, placed at the same level as properties.',
+      '"additionalProperties": false rejects fields you did not declare.'
+    ],
+    samples: [
+      { label: 'A', expect: 'pass', data: { clause_type: 'governing_law', present: true, text: 'This Agreement is governed by the laws of the State of New York.', risk: 'low' } },
+      { label: 'B', expect: 'pass', data: { clause_type: 'non_solicit', present: false, text: null, risk: 'medium' } },
+      { label: 'C', expect: 'fail', data: { clause_type: 'governing_law', present: true, text: 'Governed by Delaware law.', risk: 'Medium' } },
+      { label: 'D', expect: 'fail', data: { clause_type: 'venue', present: true, text: 'Courts of New York County.', risk: 'low' } },
+      { label: 'E', expect: 'fail', data: { clause_type: 'term', text: 'Two years from the Effective Date.', risk: 'low' } },
+      { label: 'F', expect: 'fail', data: { clause_type: 'term', present: true, text: 'Two years.', risk: 'low', confidence: 'pretty sure' } }
+    ]
+  },
+  {
+    id: 'ai-03', title: 'Schema forge: obligations', kind: 'schema', label: 'JSON Schema',
+    reqLine: 'Write JSON Schemas',
+    brief: [
+      'Real outputs are nested. <code>items</code> applies a schema to every element of an array, and an object schema inside <code>items</code> can have its own <code>required</code> list.',
+      '<code>pattern</code> takes a regular expression. In JSON you escape the backslash, so the regex <code>\\d</code> is written <code>"\\\\d"</code>. <code>minLength: 1</code> rejects empty strings. Anchor patterns with <code>^</code> and <code>$</code> or they match anywhere in the string.'
+    ],
+    task: 'The model lists post-signing obligations. obligations is required and must be an array. Each obligation needs party (Discloser or Recipient), action (a non-empty string) and due_date (YYYY-MM-DD, or null when there is no fixed date).',
+    start: `{
+  "type": "object",
+  "properties": {
+    "obligations": {
+      "type": "array"
+    }
+  }
+}`,
+    solution: `{
+  "type": "object",
+  "properties": {
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "party": { "type": "string", "enum": ["Discloser", "Recipient"] },
+          "action": { "type": "string", "minLength": 1 },
+          "due_date": {
+            "type": ["string", "null"],
+            "pattern": "^\\\\d{4}-\\\\d{2}-\\\\d{2}$"
+          }
+        },
+        "required": ["party", "action", "due_date"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["obligations"],
+  "additionalProperties": false
+}`,
+    hints: [
+      'Start with "required": ["obligations"] at the top level.',
+      'Add "items": { "type": "object", "properties": { ... }, "required": [...] } inside obligations.',
+      'pattern only applies to strings, so a null due_date skips it. Type it as ["string", "null"].',
+      'The date pattern is "^\\\\d{4}-\\\\d{2}-\\\\d{2}$".'
+    ],
+    samples: [
+      { label: 'A', expect: 'pass', data: { obligations: [{ party: 'Recipient', action: 'Return or destroy Confidential Information', due_date: '2026-12-31' }] } },
+      { label: 'B', expect: 'pass', data: { obligations: [] } },
+      { label: 'C', expect: 'pass', data: { obligations: [{ party: 'Discloser', action: 'Mark confidential materials as such', due_date: null }] } },
+      { label: 'D', expect: 'fail', data: { obligations: [{ party: 'Recipient', action: 'Return materials', due_date: '12/31/2026' }] } },
+      { label: 'E', expect: 'fail', data: { obligations: [{ party: 'Recipient', action: '', due_date: '2026-12-31' }] } },
+      { label: 'F', expect: 'fail', data: { obligations: [{ party: 'Both', action: 'Notify of any breach', due_date: '2026-11-01' }] } },
+      { label: 'G', expect: 'fail', data: {} },
+      { label: 'H', expect: 'fail', data: { obligations: [{ party: 'Recipient', due_date: '2026-12-31' }] } }
+    ]
+  },
+  {
+    id: 'ai-04', title: 'Retrieve the right rule', kind: 'select', label: 'Retrieval',
+    reqLine: 'AI engineer: retrieval',
+    brief: [
+      'Retrieval-augmented generation (RAG) searches your documents and puts the best passages into the prompt. The model only knows what you retrieve, so a wrong passage produces a confident wrong answer.',
+      'Retrieval fails in predictable ways: a keyword that matches the wrong meaning, a section with the same structure for a different clause, and superseded versions. A lawyer spots these faster than an engineer does.'
+    ],
+    task: 'Question from the deal team: "The counterparty rejected our 5-year confidentiality period. What can we offer?" Your retriever keeps two passages. Pick them.',
+    k: 2,
+    options: [
+      { text: 'Playbook §4.1 Confidentiality period. Preferred: 5 years from disclosure. Fallback: 3 years. Trade secrets stay protected while they remain trade secrets.', correct: true, why: 'The rule itself, with the fallback.' },
+      { text: 'Playbook §2.1 Term. The NDA has a 2-year term; either party may terminate on 30 days\' notice.', correct: false, why: 'Keyword trap. The term of the agreement is not the confidentiality period, which usually survives it.' },
+      { text: 'Playbook §4.3 Escalation. A confidentiality period under 3 years, or one that ends trade-secret protection, needs partner approval.', correct: true, why: 'Tells the team where the fallback stops.' },
+      { text: 'Playbook §7.2 Non-solicit period. Preferred: 12 months. Fallback: 6 months.', correct: false, why: 'Same structure, different clause. Embeddings often rank these close together.' },
+      { text: '2019 Playbook §4.1 (superseded). Preferred: 7 years. Fallback: 5 years.', correct: false, why: 'Stale. Filter retrieval by version metadata so old rules never reach the prompt.' },
+      { text: 'Client email, 2025: "We hate long NDAs. Keep them short."', correct: false, why: 'About document length, and not an approved position.' }
+    ]
+  },
+  {
+    id: 'ai-05', title: 'Score the eval run', kind: 'quiz', label: 'Evaluation',
+    reqLine: 'Write evaluation suites',
+    brief: [
+      'An evaluation suite is a set of inputs with lawyer-confirmed answers, called gold labels. Run it on every prompt or model change, the way you would rerun a conflicts check after the parties change.',
+      '<b>Precision</b>: of what the model flagged, how much was right. TP ÷ (TP + FP). <b>Recall</b>: of what should have been flagged, how much the model caught. TP ÷ (TP + FN). TP is a true positive, FP a false positive, FN a false negative.'
+    ],
+    task: 'The model flags clauses that deviate from the playbook, and flagged clauses go to a lawyer. Score this run against the gold labels.',
+    exhibit: `<h4>Eval run 14, NDA deviation flagging</h4>
+<table><thead><tr><th>#</th><th>Clause</th><th>Gold label</th><th>Model</th></tr></thead><tbody>
+<tr><td>1</td><td>Confidentiality lasts 2 years</td><td>Deviates</td><td>Flagged</td></tr>
+<tr><td>2</td><td>Governing law: New York</td><td>Standard</td><td>Not flagged</td></tr>
+<tr><td>3</td><td>Governing law: Texas</td><td>Deviates</td><td>Flagged</td></tr>
+<tr><td>4</td><td>Non-solicit for 24 months</td><td>Deviates</td><td>Flagged</td></tr>
+<tr><td>5</td><td>Confidentiality lasts 5 years</td><td>Standard</td><td>Flagged</td></tr>
+<tr><td>6</td><td>Residuals clause added</td><td>Deviates</td><td>Not flagged</td></tr>
+<tr><td>7</td><td>Standard mutual definitions</td><td>Standard</td><td>Flagged</td></tr>
+<tr><td>8</td><td>Trade secrets protected indefinitely</td><td>Standard</td><td>Not flagged</td></tr>
+<tr><td>9</td><td>No return-or-destroy clause</td><td>Deviates</td><td>Flagged</td></tr>
+<tr><td>10</td><td>Waiver of injunctive relief</td><td>Deviates</td><td>Flagged</td></tr>
+<tr><td>11</td><td>Governing law: Delaware</td><td>Standard</td><td>Flagged</td></tr>
+<tr><td>12</td><td>Assignment without consent</td><td>Deviates</td><td>Flagged</td></tr>
+</tbody></table>`,
+    questions: [
+      { type: 'number', q: 'How many true positives?', answer: 6, tol: 0, explain: 'Rows 1, 3, 4, 9, 10 and 12: deviates and flagged.' },
+      { type: 'number', q: 'Precision, as a percentage?', answer: 66.67, tol: 1, suffix: '%', explain: '9 flagged, 6 correct. 6 ÷ 9 = 66.7%. False positives: rows 5, 7 and 11.' },
+      { type: 'number', q: 'Recall, as a percentage?', answer: 85.71, tol: 1, suffix: '%', explain: '7 real deviations, 6 caught. 6 ÷ 7 = 85.7%. The miss: row 6, the residuals clause.' },
+      { type: 'choice', q: 'A clause the model misses skips human review and goes to the counterparty. Which metric does this gate depend on most?', options: ['Precision', 'Recall', 'Accuracy', 'Latency'], answer: 1, explain: 'A false positive costs a lawyer a minute. A false negative sends a deviation out unreviewed. Gates live on recall.' },
+      { type: 'choice', q: 'A prompt change lifts precision to 90% and drops recall to 70%. What do you do?', options: ['Ship it. Precision is up.', 'Read the new misses and rerun the full suite before deciding', 'Average the two and ship if the average rose', 'Ask the model whether the new prompt is better'], answer: 1, explain: 'Look at what is now being missed. For a review gate, a recall drop usually blocks the release.' },
+      { type: 'choice', q: 'Where should eval cases come from?', options: ['Ask the model to write test cases and grade itself', 'Public sample NDAs from the web', 'Past matters with lawyer-confirmed labels, including the hard edge cases', 'Whatever the last bug report mentioned'], answer: 2, explain: 'Real work, labelled by the people who own the playbook. That is the practicing lawyer\'s job on this team.' }
+    ]
+  }]
+},
+{
+  id: 'law', code: 'LW', name: 'Practicing lawyer',
+  blurb: 'Supplies the playbook, the fallback positions and the house style.',
+  levels: [
+  {
+    id: 'law-01', title: 'Apply the playbook', kind: 'classify', label: 'Classification',
+    reqLine: 'J.D. and three years of practice',
+    brief: [
+      'The playbook is the asset the other two roles cannot produce. To automate it, every position has to work as a rule a machine can apply: the preferred position, the approved fallback, and the trigger for escalation.',
+      'Read the exhibit closely. Each rule has more than one condition, and the traps are where a clause satisfies one and fails another.'
+    ],
+    exhibit: `<h4>NDA playbook, recipient side</h4>
+<ul>
+<li><b>Confidentiality period.</b> Preferred: 5 years. Fallback: 3 years. Under 3 years: escalate. In every case, trade secrets stay protected for as long as they remain trade secrets; otherwise escalate.</li>
+<li><b>Governing law.</b> Preferred: New York. Fallback: Delaware. Anything else: escalate.</li>
+<li><b>Employee non-solicit.</b> Preferred: none. Fallback: up to 12 months, limited to employees met through the deal. Anything broader: escalate.</li>
+</ul>`,
+    task: 'Sort each counterparty position: accept as preferred, accept as a fallback, or escalate.',
+    buckets: ['Preferred', 'Fallback', 'Escalate'],
+    items: [
+      { text: 'Obligations last 5 years from disclosure; trade secrets protected while they remain trade secrets.', answer: 0, why: 'Matches the preferred position on both conditions.' },
+      { text: 'Obligations last 3 years from disclosure; trade secrets protected for as long as they qualify.', answer: 1, why: 'Approved fallback, with the trade-secret carve-out intact.' },
+      { text: 'Obligations last 5 years, including for trade secrets.', answer: 2, why: 'Five years looks preferred, but trade-secret protection ends at year five. Escalate.' },
+      { text: 'This Agreement is governed by Delaware law.', answer: 1, why: 'Approved fallback.' },
+      { text: 'This Agreement is governed by the laws of England and Wales.', answer: 2, why: 'Not on the list.' },
+      { text: 'Neither party will solicit employees it met through the deal for 12 months.', answer: 1, why: 'Within the fallback on both duration and scope.' },
+      { text: 'Neither party will solicit any of the other\'s employees for 12 months.', answer: 2, why: 'Duration fits, scope does not. All employees is broader than the fallback.' },
+      { text: 'Obligations last 2 years.', answer: 2, why: 'Below the 3-year floor, and silent on trade secrets.' }
+    ]
+  },
+  {
+    id: 'law-02', title: 'Build the fallback ladder', kind: 'order', label: 'Sequencing',
+    reqLine: 'Supplies the fallback positions',
+    brief: [
+      'A fallback ladder orders positions from your opening ask down to the point where you stop and escalate. Once it is written down in order, the system can propose the next rung and the gate reviewer can check that it did.',
+      'You represent a customer buying a SaaS platform that will hold its clients\' data. The clause is the vendor\'s limitation of liability.'
+    ],
+    task: 'Order the positions from the customer\'s opening ask (top) to the escalation point (bottom).',
+    items: [
+      { text: 'Uncapped vendor liability for data breach and confidentiality; general cap at 2× annual fees', why: 'Opening ask. Data breach is the risk that matters most to this client.' },
+      { text: 'Data breach under a super-cap of 3× annual fees; general cap at 12 months\' fees', why: 'First concession: breach liability gets a cap, but a separate, higher one.' },
+      { text: 'Data breach under a super-cap of 1.5× annual fees; general cap at 12 months\' fees', why: 'Same structure, lower number. The last rung that keeps breach separate.' },
+      { text: 'Data breach falls under the general cap of 12 months\' fees', why: 'The super-cap is gone. Many playbooks allow this only with insurance requirements added.' },
+      { text: 'Cap at fees paid in the prior 3 months, all claims: escalate to the partner', why: 'The walk-away point. A rule tells the system to stop proposing and route to a person.' }
+    ]
+  },
+  {
+    id: 'law-03', title: 'Design the edge cases', kind: 'select', label: 'Eval design',
+    reqLine: 'Write evaluation suites',
+    brief: [
+      'Engineers write the happy path. Lawyers know where a rule breaks: the boundary value, the same term drafted another way, and the clause that looks compliant until you read the carve-out.',
+      'The rule under test: confidentiality period 5 years preferred, 3 years fallback, under 3 years escalates, and trade secrets must stay protected. The suite already has a standard 5-year NDA.'
+    ],
+    task: 'Your suite has room for four more cases. Pick the four that find the most bugs.',
+    k: 4,
+    options: [
+      { text: '"Obligations last exactly three (3) years."', correct: true, why: 'Boundary value. Does the model read "under 3 years" as excluding 3?' },
+      { text: '"Obligations last thirty-six (36) months."', correct: true, why: 'Same value, different unit. Catches models that only match "years".' },
+      { text: '"Obligations last 5 years, including for trade secrets."', correct: true, why: 'Looks preferred, should escalate. The highest-value trap in the rule.' },
+      { text: '"Obligations end when this Agreement terminates." (2-year term)', correct: true, why: 'The period is defined by reference to another clause. The model has to connect them.' },
+      { text: 'Another standard 5-year NDA from a different client', correct: false, why: 'Duplicates the happy path you already test.' },
+      { text: '"Obligations last 4 years."', correct: false, why: 'Mid-range. A model that handles 3 and 5 correctly will handle 4.' },
+      { text: 'A 5-year NDA with the clause in a different font', correct: false, why: 'The model reads text, not formatting. Tests nothing.' }
+    ]
+  }]
+}];
+
+/* ---------- State ---------- */
+const KEY = 'reqready.v1';
+let state = { stars: {} };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.stars) state = s; } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+const ALL = TRACKS.flatMap(t => t.levels.map((l, i) => Object.assign(l, { track: t, no: `${t.code}-${String(i + 1).padStart(2, '0')}` })));
+
+/* ---------- Helpers ---------- */
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') el.className = v;
+    else if (k === 'html') el.innerHTML = v;
+    else if (k === 'text') el.textContent = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
+  return el;
+}
+function starsEl(n) {
+  const s = h('span', { class: 'stars', 'aria-label': `${n} of 3 stars` });
+  for (let i = 0; i < 3; i++) s.append(h('span', { class: i < n ? 'on' : 'off', 'aria-hidden': 'true', text: '★' }));
+  return s;
+}
+function shuffle(a) {
+  const b = a.slice();
+  for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; }
+  if (b.length > 1 && b.every((x, i) => x === a[i])) return shuffle(a);
+  return b;
+}
+function starsFor(f) { return f >= 1 ? 3 : f >= 0.75 ? 2 : f >= 0.5 ? 1 : 0; }
+function record(level, n) { if ((state.stars[level.id] || 0) < n) { state.stars[level.id] = n; save(); } }
+const VERDICTS = [
+  'Not yet. Read the explanations, then try again.',
+  'Partial credit. The explanations show what you missed.',
+  'Close. One or two to tighten up.',
+  'Clean. That line of the req is covered.'
+];
+function resultEl(level, n, line, retry) {
+  record(level, n);
+  const idx = ALL.indexOf(level), next = ALL[idx + 1];
+  return h('div', { class: 'result', role: 'status' },
+    h('div', { class: 'row' }, starsEl(n), h('span', { class: 'score', text: line })),
+    h('p', { text: VERDICTS[n] }),
+    h('div', { class: 'row' },
+      retry && h('button', { class: 'btn ghost', style: 'color:inherit;border-color:currentColor', onclick: retry, text: 'Try again' }),
+      next ? h('button', { class: 'btn', style: 'background:var(--mark);color:var(--mark-ink)', onclick: () => go(next.id), text: `Next: ${next.title}` })
+           : h('button', { class: 'btn', style: 'background:var(--mark);color:var(--mark-ink)', onclick: () => go(''), text: 'Back to the docket' })
+    ));
+}
+
+/* ---------- Engines ---------- */
+function orderEngine(L, root) {
+  root.replaceChildren();
+  const items = L.items.map((it, i) => ({ ...it, i }));
+  let pool = shuffle(items), seq = [];
+  const seqEl = h('ol', { class: 'slots' }), poolEl = h('div', { class: 'slots' });
+  const check = h('button', { class: 'btn', text: 'Check order', disabled: true });
+  const out = h('div', { class: 'stack' });
+  function render() {
+    seqEl.replaceChildren(...seq.map((it, k) => h('li', {}, h('button', { class: 'chip placed', onclick: () => { seq.splice(k, 1); pool.push(it); render(); } }, h('span', { class: 'n', text: k + 1 }), h('span', { text: it.text })))));
+    for (let k = seq.length; k < items.length; k++) seqEl.append(h('li', {}, h('div', { class: 'chip empty' }, h('span', { class: 'n', text: k + 1 }), h('span', { text: 'Empty' }))));
+    poolEl.replaceChildren(...pool.map((it, k) => h('button', { class: 'chip', onclick: () => { pool.splice(k, 1); seq.push(it); render(); } }, h('span', { text: it.text }))));
+    if (!pool.length) poolEl.append(h('p', { class: 'muted', text: 'All steps placed.' }));
+    check.disabled = seq.length !== items.length;
+  }
+  check.onclick = () => {
+    const right = seq.filter((it, k) => it.i === k).length;
+    seqEl.replaceChildren(...seq.map((it, k) => h('li', {}, h('div', { class: 'chip ' + (it.i === k ? 'ok' : 'bad') }, h('span', { class: 'n', text: k + 1 }), h('span', { text: it.text + (it.i === k ? '' : `  (belongs at ${it.i + 1})`) })))));
+    poolEl.parentElement.hidden = true; check.hidden = true;
+    out.replaceChildren(
+      resultEl(L, starsFor(right / items.length), `${right} of ${items.length} in place`, () => orderEngine(L, root)),
+      h('div', { class: 'stack' }, h('div', { class: 'pane-title', text: 'The correct order, and why' }),
+        h('ol', { class: 'slots' }, ...items.map(it => h('li', {}, h('div', { class: 'item' }, h('b', { text: `${it.i + 1}. ${it.text}` }), h('span', { class: 'muted', text: it.why }))))))
+    );
+  };
+  root.append(h('div', { class: 'cols' },
+    h('div', { class: 'stack' }, h('div', { class: 'pane-title', text: 'Your sequence' }), seqEl),
+    h('div', { class: 'stack' }, h('div', { class: 'pane-title', text: 'Steps to place' }), poolEl)),
+    h('div', { class: 'row' }, check), out);
+  render();
+}
+
+function classifyEngine(L, root) {
+  root.replaceChildren();
+  const picks = new Array(L.items.length).fill(null);
+  const check = h('button', { class: 'btn', text: 'Check answers', disabled: true });
+  const out = h('div', { class: 'stack' });
+  const cards = L.items.map((it, i) => {
+    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': 'Treatment' });
+    L.buckets.forEach((b, j) => seg.append(h('button', { 'aria-pressed': 'false', text: b, onclick: () => {
+      picks[i] = j; seg.querySelectorAll('button').forEach((x, k) => x.setAttribute('aria-pressed', String(k === j)));
+      check.disabled = picks.includes(null);
+    } })));
+    const ex = h('div', { class: 'explain', hidden: true });
+    return { card: h('div', { class: 'item' }, h('span', { text: it.text }), seg, ex), seg, ex };
+  });
+  check.onclick = () => {
+    let right = 0;
+    L.items.forEach((it, i) => {
+      const ok = picks[i] === it.answer; right += ok;
+      const c = cards[i]; c.card.classList.add(ok ? 'ok' : 'bad');
+      c.seg.querySelectorAll('button').forEach((x, k) => { x.disabled = true; if (k === it.answer) x.classList.add('right'); });
+      c.ex.hidden = false;
+      c.ex.replaceChildren(h('b', { class: ok ? 'okt' : 'badt', text: ok ? 'Correct. ' : `${L.buckets[it.answer]}. ` }), it.why);
+    });
+    check.hidden = true;
+    out.replaceChildren(resultEl(L, starsFor(right / L.items.length), `${right} of ${L.items.length} correct`, () => classifyEngine(L, root)));
+    out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  root.append(h('div', { class: 'stack' }, ...cards.map(c => c.card)), h('div', { class: 'row' }, check), out);
+}
+
+function selectEngine(L, root) {
+  root.replaceChildren();
+  const chosen = new Set();
+  const counter = h('span', { class: 'muted' });
+  const check = h('button', { class: 'btn', text: 'Lock in', disabled: true });
+  const out = h('div', { class: 'stack' });
+  const rows = L.options.map((o, i) => {
+    const b = h('button', { class: 'toggle', 'aria-pressed': 'false', onclick: () => {
+      if (chosen.has(i)) chosen.delete(i); else if (chosen.size < L.k) chosen.add(i);
+      b.setAttribute('aria-pressed', String(chosen.has(i))); b.querySelector('.box').textContent = chosen.has(i) ? '✓' : '';
+      upd();
+    } }, h('span', { class: 'box', 'aria-hidden': 'true' }), h('span', { text: o.text }));
+    const ex = h('div', { class: 'explain', hidden: true });
+    return { wrap: h('div', { class: 'stack', style: 'gap:6px' }, b, ex), b, ex };
+  });
+  function upd() { counter.textContent = `${chosen.size} of ${L.k} picked`; check.disabled = chosen.size !== L.k; }
+  check.onclick = () => {
+    let right = 0;
+    L.options.forEach((o, i) => {
+      const r = rows[i], picked = chosen.has(i); if (picked && o.correct) right++;
+      r.b.disabled = true;
+      if (picked || o.correct) r.b.style.borderColor = o.correct ? 'var(--ok)' : 'var(--bad)';
+      r.ex.hidden = false;
+      r.ex.replaceChildren(h('b', { class: o.correct ? 'okt' : 'badt', text: o.correct ? (picked ? 'Keep. ' : 'You missed this one. ') : (picked ? 'Leave out. ' : 'Correctly left out. ') }), o.why);
+    });
+    check.hidden = true; counter.hidden = true;
+    out.replaceChildren(resultEl(L, starsFor(right / L.k), `${right} of ${L.k} right`, () => selectEngine(L, root)));
+  };
+  root.append(h('div', { class: 'stack' }, ...rows.map(r => r.wrap)), h('div', { class: 'row' }, check, counter), out);
+  upd();
+}
+
+function quizEngine(L, root) {
+  root.replaceChildren();
+  const ans = new Array(L.questions.length).fill(null);
+  const check = h('button', { class: 'btn', text: 'Check answers', disabled: true });
+  const out = h('div', { class: 'stack' });
+  const upd = () => { check.disabled = ans.some(a => a === null || a === ''); };
+  const cards = L.questions.map((q, i) => {
+    const ex = h('div', { class: 'explain', hidden: true });
+    let ctl;
+    if (q.type === 'choice') {
+      ctl = h('div', { class: 'seg', role: 'group' });
+      q.options.forEach((o, j) => ctl.append(h('button', { 'aria-pressed': 'false', text: o, onclick: () => {
+        ans[i] = j; ctl.querySelectorAll('button').forEach((x, k) => x.setAttribute('aria-pressed', String(k === j))); upd();
+      } })));
+    } else {
+      const id = `${L.id}-q${i}`;
+      const inp = h('input', { class: 'num', id, inputmode: 'decimal', autocomplete: 'off', oninput: e => { ans[i] = e.target.value.trim(); upd(); } });
+      ctl = h('div', { class: 'row' }, h('label', { class: 'muted', for: id, text: 'Answer' }), inp, q.suffix && h('span', { text: q.suffix }));
+    }
+    return { card: h('div', { class: 'item' }, h('span', { text: `${i + 1}. ${q.q}` }), ctl, ex), ctl, ex };
+  });
+  check.onclick = () => {
+    let right = 0;
+    L.questions.forEach((q, i) => {
+      const c = cards[i]; let ok;
+      if (q.type === 'choice') {
+        ok = ans[i] === q.answer;
+        c.ctl.querySelectorAll('button').forEach((x, k) => { x.disabled = true; if (k === q.answer) x.classList.add('right'); });
+      } else {
+        const v = parseFloat(String(ans[i]).replace(/[%,\s]/g, ''));
+        ok = Number.isFinite(v) && Math.abs(v - q.answer) <= q.tol + 1e-9;
+        c.ctl.querySelector('input').disabled = true;
+      }
+      right += ok; c.card.classList.add(ok ? 'ok' : 'bad'); c.ex.hidden = false;
+      c.ex.replaceChildren(h('b', { class: ok ? 'okt' : 'badt', text: ok ? 'Correct. ' : (q.type === 'choice' ? `Answer: ${q.options[q.answer]}. ` : 'Not quite. ') }), q.explain);
+    });
+    check.hidden = true;
+    out.replaceChildren(resultEl(L, starsFor(right / L.questions.length), `${right} of ${L.questions.length} correct`, () => quizEngine(L, root)));
+  };
+  root.append(h('div', { class: 'stack' }, ...cards.map(c => c.card)), h('div', { class: 'row' }, check), out);
+}
+
+function promptEngine(L, root) {
+  root.replaceChildren();
+  const on = new Set();
+  const preview = h('pre', { class: 'code' });
+  const out = h('div', { class: 'stack' });
+  const toggles = L.components.map(c => {
+    const b = h('button', { class: 'toggle', 'aria-pressed': 'false', onclick: () => {
+      on.has(c.id) ? on.delete(c.id) : on.add(c.id);
+      b.setAttribute('aria-pressed', String(on.has(c.id))); b.querySelector('.box').textContent = on.has(c.id) ? '✓' : '';
+      render();
+    } }, h('span', { class: 'box', 'aria-hidden': 'true' }), h('span', {}, h('span', { class: 'lbl', text: c.label }), h('span', { class: 'txt', text: c.text })));
+    return b;
+  });
+  function render() {
+    const parts = L.components.filter(c => on.has(c.id)).map(c => c.text);
+    preview.textContent = parts.length ? parts.join('\n\n') + '\n\n<nda>\n{{document}}\n</nda>' : '(empty prompt)\n\n<nda>\n{{document}}\n</nda>';
+  }
+  const run = h('button', { class: 'btn', text: 'Run test suite', onclick: () => {
+    const results = L.tests.map(t => ({ t, ok: on.has(t.needs) }));
+    const passed = results.filter(r => r.ok).length;
+    const fillers = L.components.filter(c => c.filler && on.has(c.id));
+    const n = passed === L.tests.length ? (fillers.length ? 2 : 3) : passed >= 4 ? 1 : 0;
+    out.replaceChildren(
+      h('div', { class: 'tests' }, ...results.map(({ t, ok }) => h('div', { class: 'test ' + (ok ? 'ok' : 'bad') },
+        h('div', { class: 'row' }, h('span', { class: 'tag ' + (ok ? 'ok' : 'bad'), text: ok ? 'Pass' : 'Fail' }), h('b', { text: t.name }), h('span', { class: 'muted', text: t.input })),
+        h('pre', { class: 'code', text: ok ? t.pass : t.fail }),
+        !ok && h('p', { class: 'muted', text: t.failWhy })))),
+      ...fillers.map(c => h('div', { class: 'warn' }, h('b', { text: `Filler: ${c.label}. ` }), c.why)),
+      resultEl(L, n, `${passed} of ${L.tests.length} tests passing${fillers.length ? `, ${fillers.length} filler line${fillers.length > 1 ? 's' : ''}` : ''}`, null)
+    );
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } });
+  root.append(
+    h('div', { class: 'cols' },
+      h('div', { class: 'stack' }, h('div', { class: 'pane-title', text: 'Components' }), ...toggles),
+      h('div', { class: 'stack', style: 'min-width:0' }, h('div', { class: 'pane-title', text: 'Assembled prompt' }), preview)),
+    h('div', { class: 'row' }, run, h('span', { class: 'muted', text: 'Run as often as you like. Each run is scored.' })), out);
+  render();
+}
+
+/* Minimal JSON Schema validator covering the keywords used in this game. */
+const KNOWN = new Set(['type', 'properties', 'required', 'enum', 'const', 'additionalProperties', 'items', 'minItems', 'maxItems', 'minLength', 'maxLength', 'pattern', 'minimum', 'maximum', 'description', 'title', '$schema']);
+function typeOf(v) { if (v === null) return 'null'; if (Array.isArray(v)) return 'array'; if (typeof v === 'number') return Number.isInteger(v) ? 'integer' : 'number'; return typeof v; }
+function typeOk(t, v) { const a = typeOf(v); return t === 'number' ? (a === 'number' || a === 'integer') : t === a; }
+function lintSchema(s, path, warns) {
+  if (typeof s !== 'object' || s === null || Array.isArray(s)) return;
+  for (const k of Object.keys(s)) if (!KNOWN.has(k)) warns.push(`Unknown keyword "${k}" at ${path}. Validators ignore keywords they do not recognize, so it has no effect.`);
+  if (s.properties && typeof s.properties === 'object') for (const [k, v] of Object.entries(s.properties)) lintSchema(v, `${path}.properties.${k}`, warns);
+  if (s.items) lintSchema(s.items, `${path}.items`, warns);
+  if (s.required && !Array.isArray(s.required)) warns.push(`"required" at ${path} must be an array of property names.`);
+  if (Array.isArray(s.required) && s.properties) for (const r of s.required) if (!(r in s.properties)) warns.push(`"${r}" is required at ${path} but not declared in properties. Check the spelling.`);
+}
+function validate(s, v, path, errs) {
+  if (s === false) { errs.push(`${path}: not allowed`); return; }
+  if (typeof s !== 'object' || s === null) return;
+  if (s.type !== undefined) {
+    const ts = [].concat(s.type);
+    if (!ts.some(t => typeOk(t, v))) { errs.push(`${path}: expected ${ts.join(' or ')}, got ${typeOf(v)}`); return; }
+  }
+  if (Array.isArray(s.enum) && !s.enum.some(e => JSON.stringify(e) === JSON.stringify(v))) errs.push(`${path}: ${JSON.stringify(v)} is not one of ${s.enum.map(e => JSON.stringify(e)).join(', ')}`);
+  if ('const' in s && JSON.stringify(s.const) !== JSON.stringify(v)) errs.push(`${path}: must equal ${JSON.stringify(s.const)}`);
+  if (typeof v === 'string') {
+    if (s.minLength != null && v.length < s.minLength) errs.push(`${path}: shorter than minLength ${s.minLength}`);
+    if (s.maxLength != null && v.length > s.maxLength) errs.push(`${path}: longer than maxLength ${s.maxLength}`);
+    if (s.pattern != null) { try { if (!new RegExp(s.pattern, 'u').test(v)) errs.push(`${path}: ${JSON.stringify(v)} does not match pattern ${s.pattern}`); } catch (e) { errs.push(`${path}: invalid pattern (${e.message})`); } }
+  }
+  if (typeof v === 'number') {
+    if (s.minimum != null && v < s.minimum) errs.push(`${path}: below minimum ${s.minimum}`);
+    if (s.maximum != null && v > s.maximum) errs.push(`${path}: above maximum ${s.maximum}`);
+  }
+  if (typeOf(v) === 'object') {
+    if (Array.isArray(s.required)) for (const r of s.required) if (!(r in v)) errs.push(`${path}: missing required "${r}"`);
+    const props = s.properties || {};
+    for (const [k, val] of Object.entries(v)) {
+      if (k in props) validate(props[k], val, `${path}.${k}`, errs);
+      else if (s.additionalProperties === false) errs.push(`${path}: "${k}" is not allowed`);
+      else if (typeof s.additionalProperties === 'object') validate(s.additionalProperties, val, `${path}.${k}`, errs);
+    }
+  }
+  if (Array.isArray(v)) {
+    if (s.minItems != null && v.length < s.minItems) errs.push(`${path}: fewer than ${s.minItems} items`);
+    if (s.maxItems != null && v.length > s.maxItems) errs.push(`${path}: more than ${s.maxItems} items`);
+    if (s.items) v.forEach((x, i) => validate(s.items, x, `${path}[${i}]`, errs));
+  }
+}
+
+function schemaEngine(L, root) {
+  root.replaceChildren();
+  let revealed = false, hintN = 0;
+  const id = `${L.id}-editor`;
+  const ta = h('textarea', { class: 'editor', id, spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', 'aria-label': 'JSON Schema editor' });
+  try { ta.value = sessionStorage.getItem(id) || L.start; } catch (e) { ta.value = L.start; }
+  ta.addEventListener('input', () => { try { sessionStorage.setItem(id, ta.value); } catch (e) {} });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const p = ta.selectionStart; ta.setRangeText('  ', p, ta.selectionEnd, 'end'); }
+  });
+  const hintsEl = h('div', { class: 'stack', style: 'gap:8px' });
+  const out = h('div', { class: 'stack' });
+  const hintBtn = h('button', { class: 'btn ghost', text: `Hint (${L.hints.length} left)`, onclick: () => {
+    if (hintN >= L.hints.length) return;
+    hintsEl.append(h('div', { class: 'warn', text: `Hint ${hintN + 1}: ${L.hints[hintN]}` })); hintN++;
+    hintBtn.textContent = hintN < L.hints.length ? `Hint (${L.hints.length - hintN} left)` : 'No hints left'; hintBtn.disabled = hintN >= L.hints.length;
+  } });
+  const solBtn = h('button', { class: 'link', text: 'Show a solution (caps this matter at 1 star)', onclick: () => {
+    revealed = true; ta.value = L.solution; try { sessionStorage.setItem(id, ta.value); } catch (e) {} runIt();
+  } });
+  const resetBtn = h('button', { class: 'link', text: 'Reset schema', onclick: () => { ta.value = L.start; try { sessionStorage.removeItem(id); } catch (e) {} out.replaceChildren(); } });
+  function runIt() {
+    let schema;
+    try { schema = JSON.parse(ta.value); }
+    catch (e) { out.replaceChildren(h('div', { class: 'item bad' }, h('b', { text: 'The schema is not valid JSON.' }), h('span', { class: 'err', text: e.message }), h('span', { class: 'muted', text: 'Check for a missing comma between properties, a trailing comma before } or ], or single quotes where JSON needs double quotes.' }))); return; }
+    const warns = []; lintSchema(schema, '$', warns);
+    let matched = 0;
+    const rows = L.samples.map(s => {
+      const errs = []; validate(schema, s.data, '$', errs);
+      const got = errs.length ? 'fail' : 'pass', ok = got === s.expect; matched += ok;
+      return h('tr', {},
+        h('td', {}, h('b', { text: s.label })),
+        h('td', {}, h('pre', { text: JSON.stringify(s.data, null, 1) })),
+        h('td', {}, h('span', { class: 'tag neutral', text: `should ${s.expect}` })),
+        h('td', {}, h('span', { class: 'tag ' + (ok ? 'ok' : 'bad'), text: got === 'pass' ? 'Passes' : 'Fails' })),
+        h('td', { class: 'msg', text: errs.length ? errs.join('\n') : '—' }));
+    });
+    const f = matched / L.samples.length;
+    const n = revealed ? Math.min(1, starsFor(f)) : starsFor(f);
+    out.replaceChildren(
+      ...warns.map(w => h('div', { class: 'warn', text: w })),
+      h('div', { class: 'samples' }, h('table', {}, h('thead', {}, h('tr', {}, ...['', 'Model output', 'Expected', 'Your schema', 'Validator says'].map(t => h('th', { text: t })))), h('tbody', {}, ...rows))),
+      resultEl(L, n, `${matched} of ${L.samples.length} samples behave correctly`, null));
+  }
+  root.append(
+    h('div', { class: 'stack' }, h('label', { class: 'pane-title', for: id, text: 'Your schema' }), ta,
+      h('div', { class: 'row' }, h('button', { class: 'btn', text: 'Validate samples', onclick: runIt }), hintBtn, resetBtn, solBtn),
+      h('p', { class: 'muted', style: 'font-size:.85rem' }, 'Supported keywords: ', h('code', { text: 'type properties required enum const additionalProperties items minItems maxItems minLength maxLength pattern minimum maximum' }), '.'),
+      hintsEl),
+    out);
+}
+
+const ENGINES = { order: orderEngine, classify: classifyEngine, select: selectEngine, quiz: quizEngine, prompt: promptEngine, schema: schemaEngine };
+
+/* ---------- Views ---------- */
+const app = document.getElementById('app');
+function trackScore(t) { return t.levels.reduce((a, l) => a + (state.stars[l.id] || 0), 0); }
+
+function home() {
+  const total = ALL.reduce((a, l) => a + (state.stars[l.id] || 0), 0), max = ALL.length * 3;
+  const cleared = ALL.every(l => (state.stars[l.id] || 0) >= 2);
+  app.replaceChildren(
+    h('header', { class: 'masthead' },
+      h('div', { class: 'eyebrow', text: 'Legal engineering practice docket' }),
+      h('h1', { text: 'Req Ready' }),
+      h('p', { class: 'lede', text: 'A Legal Engineering Attorney req asks one person to do three jobs: process engineer, AI engineer and practicing lawyer. Work through the docket to practice all three on NDA work.' }),
+      h('section', { class: 'req', 'aria-label': 'Progress by role' },
+        h('div', { class: 'row', style: 'justify-content:space-between' }, h('span', { class: 'eyebrow', text: 'Req coverage' }), h('span', { class: 'mono', style: 'font-variant-numeric:tabular-nums', text: `${total} / ${max} ★` })),
+        h('div', { class: 'req-grid' }, ...TRACKS.map(t => {
+          const s = trackScore(t), m = t.levels.length * 3;
+          return h('div', { class: 'req-role' }, h('b', { text: t.name }), h('div', { class: 'meter' }, h('i', { style: `width:${(s / m) * 100}%` })), h('span', { class: 'count', text: `${s} of ${m} stars` }));
+        })))),
+    ...TRACKS.map(t => h('section', { class: 'track' },
+      h('div', { class: 'track-head' }, h('h2', { text: t.name }), h('p', { class: 'muted', text: t.blurb })),
+      h('ul', { class: 'docket' }, ...t.levels.map(l => h('li', {}, h('button', { onclick: () => go(l.id) },
+        h('span', { class: 'no', text: `No. ${l.no}` }),
+        h('span', { class: 't' }, l.title, h('span', { class: 'k', text: `${l.label} · ${l.reqLine}` })),
+        starsEl(state.stars[l.id] || 0))))))),
+    h('section', { class: 'verdict' + (cleared ? ' done' : '') },
+      h('h3', { text: cleared ? 'You would clear this req.' : 'The bar: two stars on every matter' }),
+      h('p', { text: cleared ? 'Every line of the req is covered at two stars or better. Go back for three stars, or explain any matter out loud to a colleague without notes.' : 'Two stars means you handled most of the matter without help. Three means you could teach it.' })),
+    h('p', { class: 'foot muted' }, 'Progress is saved in this browser only. ', h('button', { class: 'link', text: 'Clear my progress', onclick: e => {
+      const b = e.currentTarget;
+      if (b.dataset.arm) { state = { stars: {} }; save(); home(); } else { b.dataset.arm = '1'; b.textContent = 'Tap again to clear all stars'; }
+    } }))
+  );
+}
+
+function matter(L) {
+  const root = h('div', { class: 'stack' });
+  app.replaceChildren(h('div', { class: 'stack', style: 'gap:22px' },
+    h('div', {}, h('button', { class: 'link', onclick: () => go(''), text: '← Docket' })),
+    h('header', { class: 'matter-head' },
+      h('div', { class: 'eyebrow', text: `${L.track.name} · No. ${L.no}` }),
+      h('h2', { text: L.title }),
+      h('div', { class: 'row' }, h('span', { class: 'muted', text: 'Best:' }), starsEl(state.stars[L.id] || 0))),
+    h('section', { class: 'brief' },
+      h('div', { class: 'pane-title', text: 'Brief' }),
+      ...L.brief.map(p => h('p', { html: p })),
+      h('p', { class: 'why', text: `On the req: "${L.reqLine}"` })),
+    L.exhibit && h('div', { class: 'exhibit', html: L.exhibit }),
+    h('p', { class: 'task', text: L.task }),
+    root));
+  ENGINES[L.kind](L, root);
+  window.scrollTo(0, 0);
+}
+
+function route() {
+  const id = location.hash.slice(1);
+  const L = ALL.find(l => l.id === id);
+  L ? matter(L) : home();
+}
+function go(id) {
+  if (location.hash.slice(1) === id) { route(); return; }
+  location.hash = id;
+  if (!id) route();
+}
+window.addEventListener('hashchange', route);
+route();
+</script>
