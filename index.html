@@ -158,6 +158,38 @@ textarea.editor { width: 100%; min-height: 320px; resize: vertical; font-family:
 .result { border-radius: var(--r); padding: 16px 18px; display: grid; gap: 8px; background: var(--panel); color: var(--panel-ink); }
 .result .stars .off { color: color-mix(in srgb, var(--panel-ink) 30%, transparent); }
 .result .score { font-family: var(--f-display); font-size: 1.4rem; font-weight: 700; }
+.interview { border-top: 1px solid color-mix(in srgb, var(--panel-ink) 25%, transparent); padding-top: 10px; display: grid; gap: 4px; }
+.interview .eyebrow { color: var(--mark); }
+.interview p { font-family: var(--f-display); font-size: 1.08rem; line-height: 1.45; }
+
+/* Builders */
+.builder-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); padding: 10px 12px; }
+.builder-row .or { font-family: var(--f-mono); font-size: 0.75rem; color: var(--muted); width: 2.2em; }
+select.sel, input.txt { font: inherit; font-size: 0.92rem; padding: 7px 10px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--paper); color: var(--ink); max-width: 100%; }
+input.txt { width: 9em; font-family: var(--f-mono); }
+input.txt.wide { width: 100%; }
+.x { background: none; border: 1px solid var(--rule); border-radius: 999px; width: 30px; height: 30px; color: var(--muted); }
+.sentence { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; line-height: 2; }
+.matrix { overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r); background: var(--sheet); }
+.matrix td.hit { background: var(--bad-bg); color: var(--bad); font-weight: 600; }
+.matrix td.same { color: var(--muted); }
+mark.m { background: var(--mark); color: var(--mark-ink); border-radius: 2px; padding: 0 2px; }
+.memo { background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--ink); border-radius: var(--r); padding: 14px 16px; font-family: var(--f-display); font-size: 1.05rem; }
+
+/* Glossary */
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.terms { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.term { background: transparent; border: 1px dashed var(--accent); color: var(--accent); border-radius: 999px; padding: 3px 11px; font-size: 0.85rem; }
+.gloss-back { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 45%, transparent); z-index: 20; }
+.gloss { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); background: var(--paper); border-left: 1px solid var(--rule); z-index: 21; display: flex; flex-direction: column; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); gap: 12px; }
+.gloss-list { overflow-y: auto; display: grid; gap: 4px; padding-bottom: 24px; }
+.gloss dl { margin: 0; padding: 10px 12px; border-radius: var(--r); }
+.gloss dl.hl { background: color-mix(in srgb, var(--mark) 35%, transparent); }
+.gloss dt { font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; }
+.gloss dd { margin: 2px 0 0; font-size: 0.93rem; }
+.prep { margin-top: 32px; display: grid; gap: 12px; }
+.prep ol { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; }
+.prep li span { display: block; font-size: 0.8rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -496,10 +528,263 @@ const TRACKS = [
   }]
 }];
 
+/* ---------- Added matters: writing exercises and wider technical skills ---------- */
+const MORE = [
+{
+  track: 'pe', id: 'pe-trigger', title: 'Write the exception trigger', kind: 'trigger', label: 'Rule writing',
+  reqLine: 'Review gates and exceptions',
+  brief: [
+    'An exception route only works if its trigger is precise. "Send the weird ones to a lawyer" is a wish. <code>confidence &lt; 0.8 OR language ≠ "en"</code> is a rule a system can run, an auditor can read, and you can test.',
+    'Each extraction result below is one JSON record from the model. Your trigger reads those fields. Watch the boundaries: "under 0.8" and "0.8 or under" route different records.'
+  ],
+  memo: 'Route the extraction to a person when the model\'s confidence is under 0.8, when the document is not in English, or when a clause the model looked for is missing. Everything else continues to the playbook check. Playbook escalations, including high-risk ratings, are handled by a separate rule, so do not route on risk here.',
+  task: 'Build the trigger. Conditions are joined with OR: any one that is true sends the record to a person.',
+  fields: [
+    { key: 'confidence', type: 'number' },
+    { key: 'language', type: 'string' },
+    { key: 'present', type: 'boolean' },
+    { key: 'risk', type: 'string' },
+    { key: 'clause_type', type: 'string' }
+  ],
+  startRows: [{ field: 'confidence', op: '<', value: '0.5' }],
+  records: [
+    { r: { clause_type: 'governing_law', present: true, risk: 'low', confidence: 0.95, language: 'en' }, route: false, why: 'Clean, confident, English.' },
+    { r: { clause_type: 'confidentiality_period', present: true, risk: 'high', confidence: 0.92, language: 'en' }, route: false, why: 'High risk is the playbook rule\'s job. The extraction itself is fine.' },
+    { r: { clause_type: 'term', present: true, risk: 'low', confidence: 0.62, language: 'en' }, route: true, why: 'Low confidence.' },
+    { r: { clause_type: 'non_solicit', present: true, risk: 'medium', confidence: 0.79, language: 'en' }, route: true, why: 'Boundary: 0.79 is under 0.8. A 0.5 threshold lets this through.' },
+    { r: { clause_type: 'governing_law', present: true, risk: 'low', confidence: 0.8, language: 'en' }, route: false, why: 'Boundary: exactly 0.8 is not under 0.8. Use <, not ≤.' },
+    { r: { clause_type: 'governing_law', present: true, risk: 'low', confidence: 0.97, language: 'de' }, route: true, why: 'Not English, however confident the model is.' },
+    { r: { clause_type: 'governing_law', present: false, risk: 'high', confidence: 0.9, language: 'en' }, route: true, why: 'A missing clause goes to a person.' },
+    { r: { clause_type: 'non_solicit', present: true, risk: 'medium', confidence: 0.88, language: 'en' }, route: false, why: 'Nothing to route.' }
+  ],
+  interview: 'I write exception triggers as explicit conditions on the model\'s output fields, like confidence under 0.8 or a missing clause, and I test them on boundary records before they go live. Quality routing and playbook escalation are separate rules, so each one can be audited on its own.',
+  terms: ['Exception route', 'Boundary case', 'JSON']
+},
+{
+  track: 'ai', after: 'ai-03', id: 'ai-regex', title: 'Pattern match the durations', kind: 'regex', label: 'Regular expressions',
+  reqLine: 'AI engineer: the tooling around the model',
+  brief: [
+    'Not every extraction needs a model. A regular expression finds text that follows a fixed pattern, instantly and the same way every time. Legal drafting is full of fixed patterns: "three (3) years", "Section 4.2", defined terms in quotes.',
+    'Useful pieces: <code>\\d+</code> one or more digits. <code>\\(</code> and <code>\\)</code> literal parentheses. <code>s?</code> an optional "s". <code>(?:a|b)</code> either option. <code>( )</code> a capture group, which pulls out the part you want. The <code>i</code> flag ignores case.'
+  ],
+  task: 'Write a pattern that finds confidentiality durations written as words plus digits in parentheses, in years or months. Capture the digits in group 1. Days and bare parenthetical numbers are not durations.',
+  start: '\\(\\d+\\) years',
+  startFlags: '',
+  solution: '\\((\\d+)\\)\\s+(?:years?|months?)\\b',
+  solutionFlags: 'i',
+  hints: [
+    'Wrap \\d+ in parentheses to capture it: \\((\\d+)\\).',
+    'Handle "year" and "years" with years? and add months the same way: (?:years?|months?).',
+    'Add the i flag so "Years" matches.'
+  ],
+  samples: [
+    { text: 'Recipient\'s obligations survive for three (3) years after disclosure.', match: true, group: '3' },
+    { text: 'These obligations continue for a period of thirty-six (36) months.', match: true, group: '36' },
+    { text: 'for five (5) Years from the Effective Date', match: true, group: '5' },
+    { text: 'and for one (1) year after termination of this Agreement', match: true, group: '1' },
+    { text: 'Notice must be given within thirty (30) days.', match: false },
+    { text: 'as described in Exhibit (3) attached hereto', match: false },
+    { text: 'Section 7 (Term) governs renewal.', match: false }
+  ],
+  interview: 'I use regular expressions for anything with a fixed drafting pattern, like durations and section references, because they are free, instant and deterministic. I keep the model for work that needs judgment, and the regex output often becomes a cheap check on the model\'s output.',
+  terms: ['Regular expression', 'Capture group', 'Deterministic']
+},
+{
+  track: 'ai', after: 'ai-04', id: 'ai-api', title: 'Read the API call', kind: 'quiz', label: 'APIs and cost',
+  reqLine: 'AI engineer: hired at the market\'s price',
+  brief: [
+    'Every model call is an HTTP request with a JSON body, and every answer is a JSON response. You do not need to write the code, but you need to read both well enough to diagnose a failure and price a pipeline.',
+    'The settings that matter most: <code>max_tokens</code> caps the length of the answer. <code>temperature</code> controls variability; 0 is the most consistent. <code>system</code> carries standing instructions. <code>stop_reason</code> tells you why the model stopped. <code>usage</code> counts the tokens you pay for.'
+  ],
+  exhibit: `<h4>Request</h4>
+<pre class="code">POST /v1/messages
+{
+  "model": "claude-sonnet-5-5",
+  "max_tokens": 40,
+  "temperature": 0,
+  "system": "Extract the governing law clause. Return only JSON matching the schema.",
+  "messages": [
+    { "role": "user", "content": "&lt;nda&gt; ...about 6,000 tokens of NDA text... &lt;/nda&gt;" }
+  ]
+}</pre>
+<h4 style="margin-top:14px">Response</h4>
+<pre class="code">{
+  "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text",
+      "text": "{\\"clause_type\\":\\"governing_law\\",\\"present\\":true,\\"text\\":\\"This Agreement shall be gov" }
+  ],
+  "stop_reason": "max_tokens",
+  "usage": { "input_tokens": 6012, "output_tokens": 40 }
+}</pre>`,
+  task: 'Your code crashed on JSON.parse() after this call. Diagnose it, then price the fixed pipeline.',
+  questions: [
+    { type: 'choice', q: 'Where is the model\'s answer in the response?', options: ['usage', 'content[0].text', 'stop_reason', 'id'], answer: 1, explain: 'content is a list of blocks. The text block holds the answer.' },
+    { type: 'choice', q: 'Why did JSON.parse() fail?', options: ['Temperature 0 produced invalid JSON', 'The system prompt was too short', 'The answer hit max_tokens and was cut off mid-string', 'The model refused the request'], answer: 2, explain: 'stop_reason is "max_tokens" and the text ends mid-word. The JSON never closed.' },
+    { type: 'choice', q: 'What is the fix?', options: ['Raise max_tokens so the full answer fits', 'Raise temperature', 'Retry the same request until it works', 'Remove the system prompt'], answer: 0, explain: 'Then also check stop_reason in code, and route any truncated answer to an exception instead of parsing it.' },
+    { type: 'choice', q: 'Why use temperature 0 for extraction?', options: ['It makes the model smarter', 'It makes output as consistent as possible across runs, which you want for extraction and evals', 'It is cheaper', 'It prevents hallucination'], answer: 1, explain: 'Lower variability makes results repeatable. It does not prevent hallucination; your prompt rules and schema do that work.' },
+    { type: 'number', q: 'After the fix, each call uses 6,000 input tokens and 400 output tokens. Assume, for this exercise, $3 per million input tokens and $15 per million output tokens. What does a month of 1,200 NDAs cost?', answer: 28.8, tol: 0.5, prefix: '$', explain: 'Input: 7.2M tokens × $3 = $21.60. Output: 480,000 tokens × $15 = $7.20. Total $28.80.' },
+    { type: 'choice', q: 'Where is most of that cost, and what reduces it?', options: ['Output; ask for shorter answers', 'Input; send only the relevant sections, and cache the fixed instructions', 'Output; lower the temperature', 'Neither; cost is fixed per call'], answer: 1, explain: 'Long documents make input the main cost: $21.60 of $28.80 here.' }
+  ],
+  interview: 'I can read an API request and response and diagnose a failure from the stop reason and token usage. I price a pipeline from tokens per document times volume, and I know input tokens dominate on contract work, so trimming what we send saves more than shortening answers.',
+  terms: ['API', 'Token', 'max_tokens', 'Temperature', 'stop_reason', 'System prompt']
+},
+{
+  track: 'ai', after: 'ai-05', id: 'ai-versions', title: 'Compare prompt versions', kind: 'quiz', label: 'Versioning',
+  reqLine: 'Write evaluation suites',
+  brief: [
+    'Prompts change constantly, and every change can break something that used to work. That is a regression. Version each prompt the way you version a template: record the text, the model, the settings and the eval results it was tested against.',
+    'Always run old and new versions on the same eval set and compare case by case. Totals hide trades.'
+  ],
+  exhibit: `<h4>Same 10-case eval set, two prompt versions</h4>
+<table><thead><tr><th>#</th><th>Case</th><th>v1</th><th>v2</th></tr></thead><tbody>
+<tr><td>1</td><td>Governing law: New York</td><td>Pass</td><td>Pass</td></tr>
+<tr><td>2</td><td>Governing law clause missing</td><td>Fail</td><td>Pass</td></tr>
+<tr><td>3</td><td>Confidentiality 3 years</td><td>Pass</td><td>Pass</td></tr>
+<tr><td>4</td><td>Confidentiality "thirty-six (36) months"</td><td>Fail</td><td>Pass</td></tr>
+<tr><td>5</td><td>Trade-secret protection ends at 5 years</td><td>Pass</td><td>Fail</td></tr>
+<tr><td>6</td><td>German-language NDA routed out</td><td>Pass</td><td>Pass</td></tr>
+<tr><td>7</td><td>Residuals clause</td><td>Fail</td><td>Fail</td></tr>
+<tr><td>8</td><td>"Applicable Law" heading</td><td>Pass</td><td>Pass</td></tr>
+<tr><td>9</td><td>Non-solicit covering all employees</td><td>Pass</td><td>Fail</td></tr>
+<tr><td>10</td><td>Exactly 3 years</td><td>Pass</td><td>Pass</td></tr>
+</tbody></table>`,
+  task: 'v2 adds a missing-clause rule and month handling. Decide whether it ships.',
+  questions: [
+    { type: 'number', q: 'v1 pass rate?', answer: 70, tol: 0.5, suffix: '%', explain: '7 of 10.' },
+    { type: 'number', q: 'v2 pass rate?', answer: 70, tol: 0.5, suffix: '%', explain: 'Also 7 of 10. The totals match and tell you nothing.' },
+    { type: 'choice', q: 'Which cases regressed?', options: ['2 and 4', '5 and 9', '7', 'None; the scores are equal'], answer: 1, explain: 'Pass in v1, fail in v2. Cases 2 and 4 are the improvements.' },
+    { type: 'choice', q: 'Does v2 ship?', options: ['Yes. Same score, plus two fixes', 'Not yet. Both regressions let escalation-worthy clauses through as standard. Fix them and rerun', 'Ship v1 and v2 to half the users each', 'Average the two prompts together'], answer: 1, explain: 'A regression on a trap clause is worse than a missed improvement. Case 7 stays on the list for both.' },
+    { type: 'choice', q: 'What do you record for each prompt version?', options: ['Only the current prompt text', 'The prompt text, model, settings and the eval results it was run against', 'The date and author', 'Nothing; the latest version is all that matters'], answer: 1, explain: 'Then you can explain any output later, and roll back when a change goes wrong.' }
+  ],
+  interview: 'I treat prompts like templates under version control. Every change runs on the same eval set, and I compare case by case, because two versions can score the same while one quietly breaks a trap clause. A regression on a high-risk case blocks the release.',
+  terms: ['Regression', 'Eval suite', 'Versioning']
+},
+{
+  track: 'law', after: 'law-01', id: 'law-rule', title: 'Turn the memo into a rule', kind: 'rule', label: 'Rule writing',
+  reqLine: 'Supplies the playbook',
+  brief: [
+    'Partners give guidance in prose. A system needs a rule with explicit numbers, explicit conditions and an explicit result for every case, including the cases the partner did not mention.',
+    'Read the memo for three things: the thresholds, which conditions must all hold, and what happens when a condition fails.'
+  ],
+  memo: '"We don\'t like non-competes. Accept one only if it lasts six months or less and is limited to the product line discussed in the deal. If it is limited to that product line but runs longer than six months, up to a year, send it to me. Anything over a year, or any non-compete not limited to the product line, reject."',
+  task: 'Fill in the rule, then test it against counterparty clauses.',
+  clauses: [
+    { text: '6 months, limited to the product line', months: 6, scoped: true, expect: 'Accept' },
+    { text: '6 months, any competing business', months: 6, scoped: false, expect: 'Reject' },
+    { text: '7 months, limited to the product line', months: 7, scoped: true, expect: 'Escalate' },
+    { text: 'One (1) year, limited to the product line', months: 12, scoped: true, expect: 'Escalate' },
+    { text: '13 months, limited to the product line', months: 13, scoped: true, expect: 'Reject' },
+    { text: '3 months, any competing business', months: 3, scoped: false, expect: 'Reject' },
+    { text: '90 days, limited to the product line', months: 3, scoped: true, expect: 'Accept' }
+  ],
+  interview: 'I turn partner guidance into explicit rules: numeric thresholds, conditions that must all hold, and a defined result for every case. Then I test the rule on boundary clauses like exactly twelve months, and I take the gaps back to the partner instead of guessing.',
+  terms: ['Playbook', 'Boundary case', 'Escalation']
+},
+{
+  track: 'law', id: 'law-break', title: 'Break the model', kind: 'break', label: 'Eval writing',
+  reqLine: 'Write evaluation suites',
+  brief: [
+    'Engineering has three candidate builds of the confidentiality checker. Each passed the engineers\' happy-path test. Each has one hidden bug. Your job is to write the test cases that expose them.',
+    'The rule: trade secrets must stay protected, or escalate. Otherwise 5 years or more is Preferred, 3 years up to 5 is Fallback, and under 3 years escalates. A test case is only worth something if its gold label is right, so label carefully.'
+  ],
+  task: 'Write up to six test cases. Each one is a duration, whether trade secrets stay protected, and the correct answer. Then run the suite against all three builds.',
+  maxCases: 6,
+  startCases: [{ n: 5, unit: 'years', ts: 'yes', expect: 'Preferred' }],
+  interview: 'I write the eval cases that break models: boundary values, the same term in different units, and clauses that look compliant until you read the carve-out. I also own the gold labels, because a wrong label makes a broken model look correct.',
+  terms: ['Gold label', 'Boundary case', 'Eval suite', 'Regression']
+}];
+
+const INTERVIEW = {
+  'pe-01': 'Before I automate anything, I decompose the workflow into tasks with one input, one output and one owner. For NDAs that is intake, triage, extraction, comparison, drafting, the attorney gate, sending and recording, and each step consumes what the step before produced.',
+  'pe-02': 'I put human gates right before anything external or irreversible, and I keep them separate from exception routes, which trigger only on conditions like low confidence or a below-floor position. Narrow, checkable tasks get automated with validation and evals behind them.',
+  'pe-03': 'I look at process cycle efficiency before automation. On a typical NDA, 45 minutes of work sits inside five days of lead time, under 2% efficiency, so removing waiting and rework usually matters more than speeding up the drafting.',
+  'ai-01': 'I write prompts as specifications. Every line maps to a test case: the task, the playbook context, the output format, a rule for missing clauses, an evidence requirement and a worked example. If a line does not change a test result, it comes out.',
+  'ai-02': 'I define the model\'s output as a JSON Schema with enums, required fields and no extra properties, so every response is validated before it reaches a lawyer or a database. The schema is the contract between the model and the rest of the system.',
+  'ai-03': 'I write nested schemas for real output, like arrays of obligations where each item has its own required fields, enums and date patterns. Validation catches a malformed date or an empty action before it reaches the obligations tracker.',
+  'ai-04': 'In retrieval I look for the failures a lawyer catches: a keyword match on the wrong concept, like agreement term versus confidentiality period, sections with the same structure for a different clause, and superseded playbook versions that should be filtered out by metadata.',
+  'ai-05': 'I score models on precision and recall against lawyer-confirmed gold labels. For a review gate, recall is what matters, because a missed deviation goes out unreviewed. I read every miss before I accept a change.',
+  'law-01': 'I read a playbook as rules with several conditions, and I look for clauses that meet one condition and fail another, like a five-year period that ends trade-secret protection. Those traps are where automation fails if a lawyer did not design it.',
+  'law-02': 'I write fallback ladders in order, from the opening ask to the walk-away point, so the system can propose the next rung and the reviewer can check it. The bottom rung is always an escalation, never a further concession.',
+  'law-03': 'Engineers test the happy path. I add the boundary value, the same term drafted another way, the reference to another clause, and the clause that looks compliant until you read the carve-out.'
+};
+const TERMS = {
+  'pe-01': ['Decomposition', 'Value stream', 'CLM'],
+  'pe-02': ['Review gate', 'Exception route', 'Eval suite'],
+  'pe-03': ['DOWNTIME', 'Process cycle efficiency', 'Lead time'],
+  'ai-01': ['Prompt', 'Hallucination', 'Few-shot example'],
+  'ai-02': ['JSON', 'JSON Schema', 'enum', 'additionalProperties'],
+  'ai-03': ['JSON Schema', 'Regular expression'],
+  'ai-04': ['Retrieval (RAG)', 'Chunk', 'Embedding', 'Metadata'],
+  'ai-05': ['Gold label', 'Precision', 'Recall', 'False positive', 'False negative'],
+  'law-01': ['Playbook', 'Escalation'],
+  'law-02': ['Fallback ladder'],
+  'law-03': ['Boundary case', 'Eval suite']
+};
+const ORDER = {
+  pe: ['pe-01', 'pe-02', 'pe-trigger', 'pe-03'],
+  ai: ['ai-01', 'ai-02', 'ai-03', 'ai-regex', 'ai-04', 'ai-api', 'ai-05', 'ai-versions'],
+  law: ['law-01', 'law-rule', 'law-02', 'law-03', 'law-break']
+};
+for (const t of TRACKS) {
+  const pool = [...t.levels, ...MORE.filter(m => m.track === t.id)];
+  t.levels = ORDER[t.id].map(id => pool.find(l => l.id === id));
+  for (const l of t.levels) { if (!l.interview) l.interview = INTERVIEW[l.id]; if (!l.terms) l.terms = TERMS[l.id] || []; }
+}
+
+const GLOSSARY = {
+  'Decomposition': 'Breaking a workflow into discrete tasks, each with one input, one output and one owner. The first step before automating anything.',
+  'Value stream': 'Every step, value-adding or not, between a request and its delivery. Mapping it shows where time goes.',
+  'CLM': 'Contract lifecycle management system. Where executed contracts, key terms and obligations are stored and tracked.',
+  'Review gate': 'A planned checkpoint every matter passes, where a person must approve before work moves on. Belongs before external or irreversible steps.',
+  'Exception route': 'A defined path triggered only by specific conditions, such as low confidence or an unsupported language, so unusual inputs leave the automated path instead of failing quietly.',
+  'Escalation': 'Sending a decision to someone with more authority because it falls outside approved positions.',
+  'DOWNTIME': 'The eight Lean wastes: Defects, Overproduction, Waiting, Non-utilized talent, Transportation, Inventory, Motion, Extra processing.',
+  'Process cycle efficiency': 'Value-added time divided by total lead time. Legal workflows often score under 5%.',
+  'Lead time': 'Total elapsed time from request to delivery, including all waiting.',
+  'Prompt': 'The instructions and context sent to a model. In production, a specification whose lines each change a testable behavior.',
+  'System prompt': 'Standing instructions sent in a separate field of the API call that apply to the whole conversation, apart from the user\'s content.',
+  'Few-shot example': 'A worked input-and-output example inside a prompt that shows the model the mapping you want.',
+  'Hallucination': 'Model output that is fluent and plausible but not supported by the source, such as a clause that is not in the contract.',
+  'JSON': 'JavaScript Object Notation. A text format for structured data: objects in braces, lists in brackets, strings in double quotes.',
+  'JSON Schema': 'A JSON document that describes what valid data looks like: types, required fields, allowed values. Used to validate every model output.',
+  'enum': 'A JSON Schema keyword listing the only allowed values for a field. Case-sensitive.',
+  'additionalProperties': 'A JSON Schema keyword. Set to false, it rejects any field the schema does not declare.',
+  'Regular expression': 'A pattern language for finding text, such as \\d+ for digits. Fast, free and deterministic; good for fixed drafting patterns.',
+  'Capture group': 'The part of a regular expression in parentheses. It pulls out a piece of the match, such as the number in "three (3) years".',
+  'Deterministic': 'Gives the same output for the same input every time. Code and regexes are deterministic; models are not fully.',
+  'Retrieval (RAG)': 'Retrieval-augmented generation. Searching your documents for relevant passages and adding them to the prompt, so the model answers from your sources.',
+  'Chunk': 'A passage a document is split into for retrieval, such as one playbook section.',
+  'Embedding': 'A list of numbers representing a passage\'s meaning, used to find similar passages. Similar structure can rank close even when the subject differs.',
+  'Metadata': 'Data about a document, such as version, date or status. Used to filter retrieval, for example to exclude superseded playbooks.',
+  'Eval suite': 'A set of inputs with confirmed correct answers, run on every prompt or model change to measure quality.',
+  'Gold label': 'The confirmed correct answer for an eval case, set by someone who knows the domain.',
+  'Precision': 'Of the items the model flagged, the share that were right. TP ÷ (TP + FP).',
+  'Recall': 'Of the items that should have been flagged, the share the model caught. TP ÷ (TP + FN). The key metric for a review gate.',
+  'False positive': 'Flagged but should not have been. Costs reviewer time.',
+  'False negative': 'Should have been flagged but was not. For a review gate, a deviation that goes out unreviewed.',
+  'Boundary case': 'A test input at the exact edge of a rule, such as exactly 3 years when the rule says "under 3 years escalates".',
+  'Regression': 'Something that used to work and broke after a change.',
+  'Versioning': 'Recording each prompt version with its model, settings and eval results, so you can compare, explain and roll back.',
+  'API': 'Application programming interface. For models, an HTTP request with a JSON body, answered with a JSON response.',
+  'Token': 'The unit models read and write, roughly three-quarters of an English word. Usage and price are counted in tokens.',
+  'max_tokens': 'API setting capping the length of the answer. Too low and the answer is cut off.',
+  'Temperature': 'API setting for output variability. 0 gives the most consistent output, which suits extraction and evals.',
+  'stop_reason': 'Field in the API response saying why the model stopped, such as finishing normally or hitting max_tokens.',
+  'Playbook': 'The firm\'s approved positions for each clause: preferred, fallback and when to escalate.',
+  'Fallback ladder': 'Positions in order from the opening ask to the walk-away point, so each concession is pre-approved.'
+};
+
 /* ---------- State ---------- */
 const KEY = 'reqready.v1';
 let state = { stars: {} };
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.stars) state = s; } catch (e) {}
+function straighten(el) {
+  const v = el.value, f = v.replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"').replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'");
+  if (f !== v) { const p = el.selectionStart; el.value = f; try { el.setSelectionRange(p, p); } catch (e) {} }
+}
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
 const ALL = TRACKS.flatMap(t => t.levels.map((l, i) => Object.assign(l, { track: t, no: `${t.code}-${String(i + 1).padStart(2, '0')}` })));
 
@@ -509,6 +794,7 @@ function h(tag, attrs, ...kids) {
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') el.className = v;
+    else if (k === 'value') el.value = v;
     else if (k === 'html') el.innerHTML = v;
     else if (k === 'text') el.textContent = v;
     else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
@@ -538,10 +824,13 @@ const VERDICTS = [
 ];
 function resultEl(level, n, line, retry) {
   record(level, n);
+  if (!state.seen) state.seen = {};
+  if (!state.seen[level.id]) { state.seen[level.id] = true; save(); }
   const idx = ALL.indexOf(level), next = ALL[idx + 1];
   return h('div', { class: 'result', role: 'status' },
     h('div', { class: 'row' }, starsEl(n), h('span', { class: 'score', text: line })),
     h('p', { text: VERDICTS[n] }),
+    level.interview && h('div', { class: 'interview' }, h('span', { class: 'eyebrow', text: 'Say it in an interview' }), h('p', { text: level.interview })),
     h('div', { class: 'row' },
       retry && h('button', { class: 'btn ghost', style: 'color:inherit;border-color:currentColor', onclick: retry, text: 'Try again' }),
       next ? h('button', { class: 'btn', style: 'background:var(--mark);color:var(--mark-ink)', onclick: () => go(next.id), text: `Next: ${next.title}` })
@@ -660,7 +949,7 @@ function quizEngine(L, root) {
     } else {
       const id = `${L.id}-q${i}`;
       const inp = h('input', { class: 'num', id, inputmode: 'decimal', autocomplete: 'off', oninput: e => { ans[i] = e.target.value.trim(); upd(); } });
-      ctl = h('div', { class: 'row' }, h('label', { class: 'muted', for: id, text: 'Answer' }), inp, q.suffix && h('span', { text: q.suffix }));
+      ctl = h('div', { class: 'row' }, h('label', { class: 'muted', for: id, text: 'Answer' }), q.prefix && h('span', { text: q.prefix }), inp, q.suffix && h('span', { text: q.suffix }));
     }
     return { card: h('div', { class: 'item' }, h('span', { text: `${i + 1}. ${q.q}` }), ctl, ex), ctl, ex };
   });
@@ -672,7 +961,7 @@ function quizEngine(L, root) {
         ok = ans[i] === q.answer;
         c.ctl.querySelectorAll('button').forEach((x, k) => { x.disabled = true; if (k === q.answer) x.classList.add('right'); });
       } else {
-        const v = parseFloat(String(ans[i]).replace(/[%,\s]/g, ''));
+        const v = parseFloat(String(ans[i]).replace(/[%,$\s]/g, ''));
         ok = Number.isFinite(v) && Math.abs(v - q.answer) <= q.tol + 1e-9;
         c.ctl.querySelector('input').disabled = true;
       }
@@ -775,9 +1064,9 @@ function schemaEngine(L, root) {
   root.replaceChildren();
   let revealed = false, hintN = 0;
   const id = `${L.id}-editor`;
-  const ta = h('textarea', { class: 'editor', id, spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', 'aria-label': 'JSON Schema editor' });
+  const ta = h('textarea', { class: 'editor', id, spellcheck: 'false', autocapitalize: 'off', autocomplete: 'off', autocorrect: 'off', 'aria-label': 'JSON Schema editor' });
   try { ta.value = sessionStorage.getItem(id) || L.start; } catch (e) { ta.value = L.start; }
-  ta.addEventListener('input', () => { try { sessionStorage.setItem(id, ta.value); } catch (e) {} });
+  ta.addEventListener('input', () => { straighten(ta); try { sessionStorage.setItem(id, ta.value); } catch (e) {} });
   ta.addEventListener('keydown', e => {
     if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const p = ta.selectionStart; ta.setRangeText('  ', p, ta.selectionEnd, 'end'); }
   });
@@ -823,10 +1112,245 @@ function schemaEngine(L, root) {
     out);
 }
 
-const ENGINES = { order: orderEngine, classify: classifyEngine, select: selectEngine, quiz: quizEngine, prompt: promptEngine, schema: schemaEngine };
+/* Exception trigger builder: OR-joined conditions over the model's output fields. */
+const OPS = ['<', '≤', '>', '≥', '=', '≠'];
+function triggerEngine(L, root) {
+  root.replaceChildren();
+  let rows = L.startRows.map(r => ({ ...r }));
+  const rowsEl = h('div', { class: 'stack', style: 'gap:8px' });
+  const expr = h('pre', { class: 'code' });
+  const out = h('div', { class: 'stack' });
+  const fieldOf = k => L.fields.find(f => f.key === k);
+  function parseVal(f, raw) {
+    const t = String(raw).trim().replace(/^["'“”‘’]|["'“”‘’]$/g, '');
+    if (f.type === 'number') { const n = parseFloat(t); return Number.isFinite(n) ? n : undefined; }
+    if (f.type === 'boolean') return t === 'true' ? true : t === 'false' ? false : undefined;
+    return t === '' ? undefined : t;
+  }
+  function test(row, rec) {
+    const f = fieldOf(row.field), want = parseVal(f, row.value), got = rec[row.field];
+    if (want === undefined) return false;
+    switch (row.op) {
+      case '<': return got < want; case '≤': return got <= want;
+      case '>': return got > want; case '≥': return got >= want;
+      case '=': return got === want; case '≠': return got !== want;
+    }
+  }
+  function fmt(row) { const f = fieldOf(row.field); const v = parseVal(f, row.value); return `${row.field} ${row.op} ${v === undefined ? '?' : JSON.stringify(v)}`; }
+  function render() {
+    rowsEl.replaceChildren(...rows.map((row, i) => {
+      const fs = h('select', { class: 'sel', id: `${L.id}-f${i}`, 'aria-label': 'Field', onchange: e => { row.field = e.target.value; render(); } }, ...L.fields.map(f => h('option', { value: f.key, text: f.key, selected: f.key === row.field })));
+      const os = h('select', { class: 'sel', id: `${L.id}-o${i}`, 'aria-label': 'Operator', onchange: e => { row.op = e.target.value; showExpr(); } }, ...OPS.map(o => h('option', { value: o, text: o, selected: o === row.op })));
+      const f = fieldOf(row.field);
+      const vin = f.type === 'boolean'
+        ? h('select', { class: 'sel', id: `${L.id}-v${i}`, 'aria-label': 'Value', onchange: e => { row.value = e.target.value; showExpr(); } }, ...['', 'true', 'false'].map(o => h('option', { value: o, text: o || 'choose', selected: o === row.value })))
+        : h('input', { class: 'txt', id: `${L.id}-v${i}`, 'aria-label': 'Value', value: row.value, placeholder: f.type === 'number' ? '0.8' : 'en', autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', oninput: e => { row.value = e.target.value; showExpr(); } });
+      return h('div', { class: 'builder-row' }, h('span', { class: 'or', text: i ? 'OR' : 'IF' }), fs, os, vin,
+        h('button', { class: 'x', 'aria-label': 'Remove condition', text: '×', onclick: () => { rows.splice(i, 1); render(); } }));
+    }));
+    if (!rows.length) rowsEl.append(h('p', { class: 'muted', text: 'No conditions. Every record continues.' }));
+    showExpr();
+  }
+  function showExpr() { expr.textContent = rows.length ? `route_to_person = ${rows.map(fmt).join('\n              OR ')}` : 'route_to_person = false'; }
+  const add = h('button', { class: 'btn ghost', text: 'Add condition', onclick: () => { rows.push({ field: 'confidence', op: '<', value: '' }); render(); } });
+  const run = h('button', { class: 'btn', text: 'Test on 8 records', onclick: () => {
+    let right = 0;
+    const trs = L.records.map((rec, i) => {
+      const got = rows.some(r => test(r, rec.r)), ok = got === rec.route; right += ok;
+      return h('tr', {}, h('td', { text: i + 1 }), h('td', {}, h('pre', { class: 'mono', style: 'margin:0;white-space:pre-wrap;font-size:.78rem', text: JSON.stringify(rec.r) })),
+        h('td', {}, h('span', { class: 'tag neutral', text: rec.route ? 'Person' : 'Continue' })),
+        h('td', {}, h('span', { class: 'tag ' + (ok ? 'ok' : 'bad'), text: got ? 'Person' : 'Continue' })),
+        h('td', { class: 'msg', text: ok ? '' : rec.why }));
+    });
+    out.replaceChildren(
+      h('div', { class: 'samples' }, h('table', {}, h('thead', {}, h('tr', {}, ...['#', 'Model output', 'Should go to', 'Your trigger', ''].map(t => h('th', { text: t })))), h('tbody', {}, ...trs))),
+      resultEl(L, starsFor(right / L.records.length), `${right} of ${L.records.length} routed correctly`, null));
+  } });
+  root.append(h('div', { class: 'memo', text: L.memo }), rowsEl, h('div', { class: 'row' }, add, run),
+    h('div', { class: 'stack', style: 'gap:6px' }, h('div', { class: 'pane-title', text: 'Your rule, as a system reads it' }), expr), out);
+  render();
+}
+
+/* Regex tester. */
+function regexEngine(L, root) {
+  root.replaceChildren();
+  let revealed = false, hintN = 0;
+  const pat = h('input', { class: 'txt wide', id: `${L.id}-pattern`, value: L.start, autocapitalize: 'off', autocorrect: 'off', autocomplete: 'off', spellcheck: 'false', 'aria-label': 'Pattern', style: 'font-size:.95rem' });
+  const flg = h('input', { class: 'txt', id: `${L.id}-flags`, value: L.startFlags, autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', 'aria-label': 'Flags', style: 'width:5em' });
+  [pat, flg].forEach(el => el.addEventListener('input', () => straighten(el)));
+  const out = h('div', { class: 'stack' }), hintsEl = h('div', { class: 'stack', style: 'gap:8px' });
+  function hl(text, m) {
+    if (!m) return [text];
+    const a = m.index, b = a + m[0].length;
+    return [text.slice(0, a), h('mark', { class: 'm', text: text.slice(a, b) }), text.slice(b)];
+  }
+  function runIt() {
+    let re;
+    try { re = new RegExp(pat.value, flg.value.replace(/[^imsu]/g, '')); }
+    catch (e) { out.replaceChildren(h('div', { class: 'item bad' }, h('b', { text: 'That pattern does not compile.' }), h('span', { class: 'err', text: e.message }), h('span', { class: 'muted', text: 'Check for an unclosed parenthesis or bracket. A literal ( must be written \\(.' }))); return; }
+    let right = 0;
+    const trs = L.samples.map(s => {
+      const m = re.exec(s.text), matched = !!m;
+      let ok = matched === s.match, note = '';
+      if (ok && s.match && m[1] !== s.group) { ok = false; note = m[1] === undefined ? 'Matched, but captured nothing in group 1.' : `Group 1 captured "${m[1]}", expected "${s.group}".`; }
+      else if (!ok) note = s.match ? 'Should match.' : 'Should not match.';
+      right += ok;
+      return h('tr', {}, h('td', {}, ...hl(s.text, m)),
+        h('td', {}, h('span', { class: 'tag neutral', text: s.match ? `match, ${s.group}` : 'no match' })),
+        h('td', {}, h('span', { class: 'tag ' + (ok ? 'ok' : 'bad'), text: matched ? `match${m[1] !== undefined ? ', ' + m[1] : ''}` : 'no match' })),
+        h('td', { class: 'msg', text: note }));
+    });
+    const f = right / L.samples.length, n = revealed ? Math.min(1, starsFor(f)) : starsFor(f);
+    out.replaceChildren(
+      h('div', { class: 'samples' }, h('table', {}, h('thead', {}, h('tr', {}, ...['Text (match highlighted)', 'Expected', 'Your pattern', ''].map(t => h('th', { text: t })))), h('tbody', {}, ...trs))),
+      resultEl(L, n, `${right} of ${L.samples.length} lines handled correctly`, null));
+  }
+  const hintBtn = h('button', { class: 'btn ghost', text: `Hint (${L.hints.length} left)`, onclick: () => {
+    if (hintN >= L.hints.length) return;
+    hintsEl.append(h('div', { class: 'warn', text: `Hint ${hintN + 1}: ${L.hints[hintN]}` })); hintN++;
+    hintBtn.textContent = hintN < L.hints.length ? `Hint (${L.hints.length - hintN} left)` : 'No hints left'; hintBtn.disabled = hintN >= L.hints.length;
+  } });
+  root.append(
+    h('div', { class: 'stack', style: 'gap:8px' },
+      h('label', { class: 'pane-title', for: pat.id, text: 'Pattern' }),
+      h('div', { class: 'row', style: 'flex-wrap:nowrap' }, h('span', { class: 'mono muted', text: '/' }), pat, h('span', { class: 'mono muted', text: '/' }), flg)),
+    h('div', { class: 'row' }, h('button', { class: 'btn', text: 'Test pattern', onclick: runIt }), hintBtn,
+      h('button', { class: 'link', text: 'Show a solution (caps this matter at 1 star)', onclick: () => { revealed = true; pat.value = L.solution; flg.value = L.solutionFlags; runIt(); } })),
+    hintsEl, out);
+}
+
+/* Memo to rule: structured rule form tested against clauses. */
+function ruleEngine(L, root) {
+  root.replaceChildren();
+  const r = { accept: '', escalate: '', scope: 'Not required', missing: 'Escalate' };
+  const num = (k, ph) => h('input', { class: 'txt', id: `${L.id}-${k}`, inputmode: 'numeric', placeholder: ph, style: 'width:5em', 'aria-label': k, oninput: e => { r[k] = e.target.value; show(); } });
+  const pick = (k, opts) => h('select', { class: 'sel', id: `${L.id}-${k}`, 'aria-label': k, onchange: e => { r[k] = e.target.value; show(); } }, ...opts.map(o => h('option', { value: o, text: o, selected: o === r[k] })));
+  const code = h('pre', { class: 'code' }), out = h('div', { class: 'stack' });
+  function decide(c) {
+    const a = parseFloat(r.accept), e = parseFloat(r.escalate);
+    if (r.scope === 'Required' && !c.scoped) return r.missing;
+    if (Number.isFinite(a) && c.months <= a) return 'Accept';
+    if (Number.isFinite(e) && c.months <= e) return 'Escalate';
+    return 'Reject';
+  }
+  function show() {
+    code.textContent = (r.scope === 'Required' ? `if not limited_to_product_line: ${r.missing.toUpperCase()}\n` : '')
+      + `if months <= ${r.accept || '?'}: ACCEPT\nif months <= ${r.escalate || '?'}: ESCALATE\notherwise: REJECT`;
+  }
+  const run = h('button', { class: 'btn', text: 'Test the rule', onclick: () => {
+    let right = 0;
+    const trs = L.clauses.map(c => {
+      const got = decide(c), ok = got === c.expect; right += ok;
+      return h('tr', {}, h('td', { text: c.text }), h('td', {}, h('span', { class: 'tag neutral', text: c.expect })), h('td', {}, h('span', { class: 'tag ' + (ok ? 'ok' : 'bad'), text: got })));
+    });
+    const notes = [];
+    if (parseFloat(r.accept) !== 6) notes.push('"Six months or less" means accept up to and including 6.');
+    if (parseFloat(r.escalate) !== 12) notes.push('"Up to a year" means escalate through 12 months; 13 rejects.');
+    if (r.scope !== 'Required' || r.missing !== 'Reject') notes.push('"Any non-compete not limited to the product line, reject": the scope limit is required, and a missing one rejects even at 3 months.');
+    out.replaceChildren(
+      h('div', { class: 'samples' }, h('table', {}, h('thead', {}, h('tr', {}, ...['Counterparty clause', 'Partner intends', 'Your rule says'].map(t => h('th', { text: t })))), h('tbody', {}, ...trs))),
+      ...(right < L.clauses.length ? notes.map(n => h('div', { class: 'warn', text: n })) : []),
+      h('p', { class: 'muted', text: 'Note "90 days": the clause is in days and your rule is in months. In production, normalize units before the rule runs, or the rule silently misreads the clause.' }),
+      resultEl(L, starsFor(right / L.clauses.length), `${right} of ${L.clauses.length} clauses decided as the partner intends`, null));
+  } });
+  root.append(h('div', { class: 'memo', text: L.memo }),
+    h('div', { class: 'item' },
+      h('div', { class: 'sentence' }, 'Accept when the non-compete lasts', num('accept', '?'), 'months or less.'),
+      h('div', { class: 'sentence' }, 'Escalate when it lasts', num('escalate', '?'), 'months or less.'),
+      h('div', { class: 'sentence' }, 'Otherwise reject.'),
+      h('div', { class: 'sentence' }, 'A limit to the deal\'s product line is', pick('scope', ['Not required', 'Required']), '. If the limit is missing:', pick('missing', ['Accept', 'Escalate', 'Reject']))),
+    h('div', { class: 'stack', style: 'gap:6px' }, h('div', { class: 'pane-title', text: 'Your rule, as a system reads it' }), code),
+    h('div', { class: 'row' }, run), out);
+  show();
+}
+
+/* Break the model: user-written eval cases run against three buggy builds. */
+const CONF_REF = c => { const y = c.unit === 'months' ? c.n / 12 : c.n; return c.ts === 'no' ? 'Escalate' : y >= 5 ? 'Preferred' : y >= 3 ? 'Fallback' : 'Escalate'; };
+const BUILDS = [
+  { name: 'Build A', bug: 'Off by one: treats exactly 3 years as under the floor (used ≤ 3 where the rule says < 3).',
+    run: c => { const y = c.unit === 'months' ? c.n / 12 : c.n; return c.ts === 'no' ? 'Escalate' : y >= 5 ? 'Preferred' : y > 3 ? 'Fallback' : 'Escalate'; } },
+  { name: 'Build B', bug: 'Ignores units: reads "36 months" as 36 years.',
+    run: c => { const y = c.n; return c.ts === 'no' ? 'Escalate' : y >= 5 ? 'Preferred' : y >= 3 ? 'Fallback' : 'Escalate'; } },
+  { name: 'Build C', bug: 'Ignores the trade-secret condition entirely.',
+    run: c => { const y = c.unit === 'months' ? c.n / 12 : c.n; return y >= 5 ? 'Preferred' : y >= 3 ? 'Fallback' : 'Escalate'; } }
+];
+function breakEngine(L, root) {
+  root.replaceChildren();
+  let cases = L.startCases.map(c => ({ ...c }));
+  const list = h('div', { class: 'stack', style: 'gap:8px' }), out = h('div', { class: 'stack' });
+  function render() {
+    list.replaceChildren(...cases.map((c, i) => h('div', { class: 'builder-row' },
+      h('span', { class: 'or', text: `#${i + 1}` }),
+      h('input', { class: 'txt', id: `${L.id}-n${i}`, inputmode: 'numeric', value: c.n, style: 'width:4.5em', 'aria-label': 'Duration', oninput: e => { c.n = parseFloat(e.target.value); } }),
+      h('select', { class: 'sel', id: `${L.id}-u${i}`, 'aria-label': 'Unit', onchange: e => { c.unit = e.target.value; } }, ...['years', 'months'].map(o => h('option', { value: o, text: o, selected: o === c.unit }))),
+      h('label', { class: 'muted', for: `${L.id}-t${i}`, text: 'trade secrets protected?' }),
+      h('select', { class: 'sel', id: `${L.id}-t${i}`, onchange: e => { c.ts = e.target.value; } }, ...['yes', 'no'].map(o => h('option', { value: o, text: o, selected: o === c.ts }))),
+      h('label', { class: 'muted', for: `${L.id}-e${i}`, text: 'correct answer' }),
+      h('select', { class: 'sel', id: `${L.id}-e${i}`, onchange: e => { c.expect = e.target.value; } }, ...['Preferred', 'Fallback', 'Escalate'].map(o => h('option', { value: o, text: o, selected: o === c.expect }))),
+      h('button', { class: 'x', 'aria-label': 'Remove case', text: '×', onclick: () => { cases.splice(i, 1); render(); } }))));
+    add.disabled = cases.length >= L.maxCases;
+    add.textContent = cases.length >= L.maxCases ? `Suite is full (${L.maxCases})` : 'Add test case';
+  }
+  const add = h('button', { class: 'btn ghost', onclick: () => { cases.push({ n: 3, unit: 'years', ts: 'yes', expect: 'Fallback' }); render(); } });
+  const run = h('button', { class: 'btn', text: 'Run suite on all builds', onclick: () => {
+    const valid = cases.filter(c => Number.isFinite(c.n) && c.n >= 0);
+    let mislabeled = 0;
+    const caught = new Set();
+    const trs = valid.map((c, i) => {
+      const ref = CONF_REF(c), goodLabel = ref === c.expect;
+      if (!goodLabel) mislabeled++;
+      const cells = BUILDS.map((b, j) => {
+        const got = b.run(c), hit = goodLabel && got !== c.expect;
+        if (hit) caught.add(j);
+        return h('td', { class: hit ? 'hit' : 'same', text: got });
+      });
+      return h('tr', {}, h('td', { text: `${c.n} ${c.unit}, trade secrets ${c.ts === 'yes' ? 'protected' : 'not protected'}` }),
+        h('td', {}, h('span', { class: 'tag ' + (goodLabel ? 'neutral' : 'bad'), text: c.expect }), !goodLabel && h('div', { class: 'msg', style: 'font-size:.78rem;color:var(--bad)', text: `Wrong gold label. The rule says ${ref}.` })),
+        ...cells);
+    });
+    const n = Math.min(caught.size, mislabeled ? 2 : 3);
+    out.replaceChildren(
+      h('div', { class: 'matrix' }, h('table', {}, h('thead', {}, h('tr', {}, ...['Test case', 'Your gold label', ...BUILDS.map(b => b.name)].map(t => h('th', { text: t })))), h('tbody', {}, ...trs))),
+      h('p', { class: 'muted', text: 'Red cells are bugs your suite caught: the build disagrees with a correct gold label.' }),
+      ...BUILDS.map((b, j) => h('div', { class: caught.has(j) ? 'item ok' : 'item' }, h('b', { text: `${b.name}: ${caught.has(j) ? 'bug caught' : 'still hiding'}` }), h('span', { class: 'muted', text: caught.has(j) ? b.bug : 'No case in your suite exposes this build yet.' }))),
+      ...(mislabeled ? [h('div', { class: 'warn', text: `${mislabeled} case${mislabeled > 1 ? 's have' : ' has'} a wrong gold label, so ${mislabeled > 1 ? 'they count' : 'it counts'} for nothing, and this run is capped at 2 stars. A wrong label can make a broken build look correct.` })] : []),
+      resultEl(L, n, `${caught.size} of ${BUILDS.length} bugs caught with ${valid.length} case${valid.length === 1 ? '' : 's'}`, null));
+  } });
+  root.append(list, h('div', { class: 'row' }, add, run), out);
+  render();
+}
+
+const ENGINES = { trigger: triggerEngine, regex: regexEngine, rule: ruleEngine, break: breakEngine, order: orderEngine, classify: classifyEngine, select: selectEngine, quiz: quizEngine, prompt: promptEngine, schema: schemaEngine };
 
 /* ---------- Views ---------- */
 const app = document.getElementById('app');
+/* Glossary panel */
+function openGlossary(focus) {
+  closeGlossary();
+  const back = h('div', { class: 'gloss-back', onclick: closeGlossary });
+  const q = h('input', { class: 'txt wide', id: 'gloss-search', type: 'search', placeholder: 'Search terms', autocapitalize: 'off', autocorrect: 'off' });
+  const list = h('div', { class: 'gloss-list' });
+  const names = Object.keys(GLOSSARY).sort((a, b) => a.localeCompare(b));
+  function render() {
+    const t = q.value.trim().toLowerCase();
+    const hits = names.filter(n => !t || n.toLowerCase().includes(t) || GLOSSARY[n].toLowerCase().includes(t));
+    list.replaceChildren(...hits.map(n => h('dl', { class: n === focus ? 'hl' : '', 'data-term': n }, h('dt', { text: n }), h('dd', { text: GLOSSARY[n] }))));
+    if (!hits.length) list.append(h('p', { class: 'muted', text: 'No terms match.' }));
+  }
+  q.addEventListener('input', () => { focus = null; render(); });
+  const panel = h('aside', { class: 'gloss', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Glossary' },
+    h('div', { class: 'topbar' }, h('h3', { text: 'Glossary' }), h('button', { class: 'btn ghost', text: 'Close', onclick: closeGlossary })),
+    q, list);
+  document.body.append(back, panel);
+  render();
+  const target = focus && list.querySelector(`[data-term="${CSS.escape(focus)}"]`);
+  if (target) target.scrollIntoView({ block: 'center' }); else q.focus();
+  panel.querySelector('button').focus({ preventScroll: true });
+}
+function closeGlossary() { document.querySelectorAll('.gloss, .gloss-back').forEach(e => e.remove()); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGlossary(); });
+const glossBtn = () => h('button', { class: 'btn ghost', text: 'Glossary', onclick: () => openGlossary() });
+
 function trackScore(t) { return t.levels.reduce((a, l) => a + (state.stars[l.id] || 0), 0); }
 
 function home() {
@@ -834,7 +1358,7 @@ function home() {
   const cleared = ALL.every(l => (state.stars[l.id] || 0) >= 2);
   app.replaceChildren(
     h('header', { class: 'masthead' },
-      h('div', { class: 'eyebrow', text: 'Legal engineering practice docket' }),
+      h('div', { class: 'topbar' }, h('div', { class: 'eyebrow', text: 'Legal engineering practice docket' }), glossBtn()),
       h('h1', { text: 'Req Ready' }),
       h('p', { class: 'lede', text: 'A Legal Engineering Attorney req asks one person to do three jobs: process engineer, AI engineer and practicing lawyer. Work through the docket to practice all three on NDA work.' }),
       h('section', { class: 'req', 'aria-label': 'Progress by role' },
@@ -852,6 +1376,7 @@ function home() {
     h('section', { class: 'verdict' + (cleared ? ' done' : '') },
       h('h3', { text: cleared ? 'You would clear this req.' : 'The bar: two stars on every matter' }),
       h('p', { text: cleared ? 'Every line of the req is covered at two stars or better. Go back for three stars, or explain any matter out loud to a colleague without notes.' : 'Two stars means you handled most of the matter without help. Three means you could teach it.' })),
+    prepEl(),
     h('p', { class: 'foot muted' }, 'Progress is saved in this browser only. ', h('button', { class: 'link', text: 'Clear my progress', onclick: e => {
       const b = e.currentTarget;
       if (b.dataset.arm) { state = { stars: {} }; save(); home(); } else { b.dataset.arm = '1'; b.textContent = 'Tap again to clear all stars'; }
@@ -859,10 +1384,19 @@ function home() {
   );
 }
 
+function prepEl() {
+  const seen = ALL.filter(l => state.seen && state.seen[l.id] && l.interview);
+  return h('section', { class: 'prep' },
+    h('h3', { text: 'Interview prep' }),
+    seen.length
+      ? h('ol', {}, ...seen.map(l => h('li', {}, h('span', { text: `${l.track.name} · ${l.title}` }), l.interview)))
+      : h('p', { class: 'muted', text: 'Each matter you finish adds a line you can say in an interview. They collect here, so you can rehearse the whole req in one read.' }));
+}
+
 function matter(L) {
   const root = h('div', { class: 'stack' });
   app.replaceChildren(h('div', { class: 'stack', style: 'gap:22px' },
-    h('div', {}, h('button', { class: 'link', onclick: () => go(''), text: '← Docket' })),
+    h('div', { class: 'topbar' }, h('button', { class: 'link', onclick: () => go(''), text: '← Docket' }), glossBtn()),
     h('header', { class: 'matter-head' },
       h('div', { class: 'eyebrow', text: `${L.track.name} · No. ${L.no}` }),
       h('h2', { text: L.title }),
@@ -870,7 +1404,8 @@ function matter(L) {
     h('section', { class: 'brief' },
       h('div', { class: 'pane-title', text: 'Brief' }),
       ...L.brief.map(p => h('p', { html: p })),
-      h('p', { class: 'why', text: `On the req: "${L.reqLine}"` })),
+      h('p', { class: 'why', text: `On the req: "${L.reqLine}"` }),
+      L.terms.length ? h('div', { class: 'terms' }, h('span', { class: 'muted', style: 'font-size:.85rem', text: 'Terms:' }), ...L.terms.map(t => h('button', { class: 'term', text: t, onclick: () => openGlossary(t) }))) : null),
     L.exhibit && h('div', { class: 'exhibit', html: L.exhibit }),
     h('p', { class: 'task', text: L.task }),
     root));
@@ -879,6 +1414,7 @@ function matter(L) {
 }
 
 function route() {
+  closeGlossary();
   const id = location.hash.slice(1);
   const L = ALL.find(l => l.id === id);
   L ? matter(L) : home();
